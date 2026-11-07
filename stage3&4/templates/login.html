@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - University System</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+    />
+  </head>
+  <body>
+    <main class="login-screen">
+      <div class="login-box">
+        <div class="login-campus-banner">
+          <span>University Academic Portal</span>
+        </div>
+
+        <div class="login-body">
+          <div class="login-header">
+            <div class="logo-mark">UTH</div>
+            <h1>University Portal</h1>
+            <p>Sign in with your credentials to access the portal</p>
+          </div>
+
+          <div id="login-error" class="toast-banner toast-danger hidden"></div>
+
+          <form onsubmit="handleAuth(event)">
+            <div class="form-group">
+              <label for="username">User ID / Username</label>
+              <input
+                type="text"
+                id="username"
+                placeholder="Enter your User ID"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="password">Password</label>
+              <input
+                type="password"
+                id="password"
+                placeholder="Enter your password"
+                required
+              />
+            </div>
+
+            <p
+              style="
+                font-size: 0.78rem;
+                color: var(--text-muted);
+                text-align: center;
+                margin-bottom: 18px;
+              "
+            >
+              For security, inactive sessions automatically log out after 15
+              minutes.
+            </p>
+
+            <button type="submit" class="btn btn-primary btn-block">
+              Sign In to Portal
+            </button>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <script src="/static/js/main.js"></script>
+  </body>
+</html>

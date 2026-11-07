@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>View Student List - Lecturer Portal</title>
+    <link rel="stylesheet" href="/static/css/lecturer.css" />
+  </head>
+  </head>
+  <body>
+    <div class="portal-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="logo-mark">UTH</div>
+          <div>
+            <h2>Lecturer Portal</h2>
+            <span>Faculty System</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="lecturer-classes.html" class="nav-link"
+            >View Assigned Classes</a
+          >
+          <a href="lecturer-schedule.html" class="nav-link"
+            >View Teaching Schedule</a
+          >
+          <a href="lecturer-students.html" class="nav-link active"
+            >View Student List</a
+          >
+          <a href="lecturer-profile.html" class="nav-link">Manage Profile</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <a href="lecturer-login.html" class="btn btn-danger-soft btn-block"
+            >Log Out</a
+          >
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <header class="top-bar">
+          <div class="campus-hero-strip">
+            <span>Academic Year 2026 – 2027 • Enrolled Class Roster</span>
+            <h2>Class Section Student List & Export</h2>
+          </div>
+
+          <div class="semester-picker">
+            <label for="sem-select">Semester</label>
+            <select id="sem-select" onchange="loadStudentRoster()">
+              <option value="2026-1">Semester 1 (2026 - 2027)</option>
+              <option value="2025-2">Semester 2 (2025 - 2026)</option>
+            </select>
+          </div>
+
+          <div class="top-user-area">
+            <div class="workload-pill">
+              Active Section: <strong id="top-section-code">--</strong>
+            </div>
+            <div class="user-profile-chip">
+              <strong>Dr. Sarah Jenkins</strong>
+              <span>ID: GV202601</span>
+            </div>
+          </div>
+        </header>
+
+        <div
+          id="export-toast"
+          class="toast-banner toast-success hidden no-print"
+        ></div>
+
+        <div class="page-header">
+          <div>
+            <h1>View Enrolled Student List</h1>
+            <p>
+              Select an assigned class section to inspect, export, or print the
+              enrolled student roster.
+            </p>
+          </div>
+        </div>
+
+        <!-- Class Section Filter & Export/Print Actions -->
+        <section class="surface-card no-print">
+          <div class="control-bar">
+            <div class="form-group">
+              <label for="section-select">Select Assigned Class Section</label>
+              <select id="section-select" onchange="loadStudentRoster()">
+                <!-- Sẽ nạp danh sách lớp động từ API / URL parameter -->
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="student-search">Filter Student Roster</label>
+              <input
+                type="text"
+                id="student-search"
+                placeholder="Search by Student ID, full name, or email..."
+                oninput="filterStudents()"
+              />
+            </div>
+
+            <div class="action-group">
+              <button
+                id="btn-export"
+                class="btn btn-primary"
+                onclick="exportStudentCSV()"
+              >
+                Export List (.CSV)
+              </button>
+              <button
+                id="btn-print"
+                class="btn btn-indigo"
+                onclick="window.print()"
+              >
+                Print Student List
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Empty State Notice -->
+        <div
+          id="empty-roster-msg"
+          class="empty-state-box hidden"
+          style="margin-bottom: 24px"
+        >
+          No students are currently enrolled in this class section or class is
+          empty.
+        </div>
+
+        <!-- Enrolled Student Table -->
+        <section id="roster-card" class="surface-card">
+          <div class="surface-header">
+            <h3 id="roster-heading">Enrolled Student List</h3>
+            <span id="roster-meta" class="surface-subtitle"
+              >Real-time Student Roster API</span
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table class="clean-table" id="student-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Student ID</th>
+                  <th>Full Name</th>
+                  <th>Academic Major</th>
+                  <th>Email Address (Contact)</th>
+                  <th>Phone Number</th>
+                  <th>Enrollment Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="student-tbody">
+                <!-- Làm trống nội dung sẵn sàng nạp động từ MC / API -->
+              </tbody>
+            </table>
+            <div id="student-pagination"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+<script src="/static/js/lecturer.js"></script>
+    <script src="/static/js/main.js"></script>
+  </body>
+</html>

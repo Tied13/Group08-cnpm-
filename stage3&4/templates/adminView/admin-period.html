@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Configure Reg Period - Admin Console</title>
+    <link rel="stylesheet" href="/static/css/admin.css" />
+  </head>
+  <body>
+    <div class="portal-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="logo-mark">UTH</div>
+          <div>
+            <h2>Admin Console</h2>
+            <span>System Management</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="admin-users.html" class="nav-link">Manage User Accounts</a>
+          <a href="admin-period.html" class="nav-link active"
+            >Configure Reg Period</a
+          >
+          <a href="admin-courses.html" class="nav-link">Manage Courses</a>
+          <a href="admin-classes.html" class="nav-link"
+            >Create & Cancel Classes</a
+          >
+          <a href="admin-reports.html" class="nav-link"
+            >View Registration Reports</a
+          >
+        </nav>
+
+        <div class="sidebar-footer">
+          <a href="admin-login.html" class="btn btn-danger-soft btn-block"
+            >Log Out</a
+          >
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <header class="top-bar">
+          <div class="campus-hero-strip">
+            <span>Academic Year 2026 – 2027 • Enrollment Window Control</span>
+            <h2>Configure Course Registration Period</h2>
+          </div>
+
+          <div class="semester-picker">
+            <label for="sem-select">Target Semester</label>
+            <select id="sem-select" onchange="loadPeriodData()">
+              <option value="2026-1">
+                Semester 1 (Academic Year 2026 - 2027)
+              </option>
+              <option value="2026-2">
+                Semester 2 (Academic Year 2026 - 2027)
+              </option>
+            </select>
+          </div>
+
+          <div class="top-user-area">
+            <div class="system-pill">
+              Current Window: <strong id="window-status">--</strong>
+            </div>
+            <div class="user-profile-chip">
+              <strong>System Administrator</strong>
+              <span>ID: AD202601</span>
+            </div>
+          </div>
+        </header>
+
+        <div id="period-toast" class="toast-banner hidden"></div>
+
+        <div class="page-header">
+          <div>
+            <h1>Configure Course Registration Period</h1>
+            <p>
+              Set or modify the start date/time and end date/time for student
+              course registration and cancellation.
+            </p>
+          </div>
+        </div>
+
+        <!-- Current Active Settings Summary -->
+        <div class="stats-grid">
+          <div class="stat-tile">
+            <span>Configured Semester</span>
+            <strong id="display-sem">Semester 1 (26-27)</strong>
+          </div>
+          <div class="stat-tile">
+            <span>Active Start Date & Time</span>
+            <strong id="display-start" style="font-size: 1.15rem">--</strong>
+          </div>
+          <div class="stat-tile">
+            <span>Active End Date & Time</span>
+            <strong id="display-end" style="font-size: 1.15rem">--</strong>
+          </div>
+          <div class="stat-tile">
+            <span>Allowed Credit Limits</span>
+            <strong>12 – 25 Credits</strong>
+          </div>
+        </div>
+
+        <!-- Configuration Form -->
+        <section class="surface-card">
+          <div class="surface-header">
+            <h3>Modify Registration Period Settings</h3>
+            <span class="surface-subtitle"
+              >Enforced globally across the Student Portal</span
+            >
+          </div>
+
+          <form onsubmit="handleSavePeriod(event)">
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="start-dt">Registration Start Date & Time</label>
+                <input type="datetime-local" id="start-dt" required />
+              </div>
+
+              <div class="form-group">
+                <label for="end-dt">Registration End Date & Time</label>
+                <input type="datetime-local" id="end-dt" required />
+              </div>
+            </div>
+
+            <div
+              style="
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                margin-top: 10px;
+              "
+            >
+              <button type="submit" class="btn btn-primary">
+                Save Configuration
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Configured Semester History Table -->
+        <section class="surface-card">
+          <div class="surface-header">
+            <h3>Semester Registration Period Log</h3>
+          </div>
+          <div class="table-wrap">
+            <table class="clean-table" id="period-log-table">
+              <thead>
+                <tr>
+                  <th>Semester Code</th>
+                  <th>Semester Name</th>
+                  <th>Start Date & Time</th>
+                  <th>End Date & Time</th>
+                  <th>Configured By</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="period-tbody">
+                <!-- Làm trống nội dung sẵn sàng nạp động từ MC / API -->
+              </tbody>
+            </table>
+            <div id="period-pagination"></div>
+            <p
+              id="period-empty"
+              class="hidden"
+              style="
+                text-align: center;
+                padding: 20px;
+                color: var(--text-muted);
+              "
+            >
+              No period logs found.
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/js/admin.js"></script>
+    <script src="/static/js/main.js"></script>
+  </body>
+</html>

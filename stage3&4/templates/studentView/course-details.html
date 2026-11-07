@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Course Details - Student Portal</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+  <body>
+    <div class="portal-layout">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="logo-mark">UTH</div>
+          <div>
+            <h2>Student Portal</h2>
+            <span>Course Registration</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="courses.html" class="nav-link active"
+            >Search & Register Courses</a
+          >
+          <a href="timetable.html" class="nav-link">Personal Timetable</a>
+          <a href="tuition.html" class="nav-link">Tuition Fee</a>
+          <a href="history.html" class="nav-link">Registration History</a>
+          <a href="profile.html" class="nav-link">Manage Profile</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <a href="login.html" class="btn btn-danger-soft btn-block">Log Out</a>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="top-bar">
+          <div class="campus-hero-strip">
+            <span>Academic Year 2026 – 2027</span>
+            <h2>Student Course Registration Portal</h2>
+          </div>
+          <a href="courses.html" class="btn btn-soft"
+            >&larr; Back to Course Search</a
+          >
+          <div class="user-profile-chip">
+            <strong>Alex Nguyen</strong>
+            <span>ID: SV2026001</span>
+          </div>
+        </header>
+
+        <div id="detail-toast" class="toast-banner toast-success hidden">
+          Successfully registered for IT201.01! Available seats decremented by
+          1.
+        </div>
+
+        <div class="page-header">
+          <div>
+            <span class="badge badge-primary" style="margin-bottom: 8px"
+              >Class Section Details</span
+            >
+            <h1>IT201 — Database Management Systems</h1>
+            <p>
+              Detailed section information, capacity metrics, and prerequisite
+              requirements.
+            </p>
+          </div>
+          <button
+            class="btn btn-primary"
+            onclick="
+              document.getElementById('detail-toast').classList.remove('hidden')
+            "
+          >
+            Register for This Section
+          </button>
+        </div>
+
+        <div class="two-col-grid">
+          <section class="surface-card">
+            <div class="surface-header">
+              <h3>Class Section Specifications</h3>
+            </div>
+            <div class="info-list">
+              <div class="info-item">
+                <span>Course Code</span>
+                <strong>IT201</strong>
+              </div>
+              <div class="info-item">
+                <span>Class Section Code</span>
+                <strong>IT201.01</strong>
+              </div>
+              <div class="info-item">
+                <span>Number of Credits</span>
+                <strong>3 Credits</strong>
+              </div>
+              <div class="info-item">
+                <span>Assigned Lecturer</span>
+                <strong>Dr. Sarah Jenkins</strong>
+              </div>
+              <div class="info-item">
+                <span>Semester</span>
+                <strong>Semester 1 (2026 - 2027)</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="surface-card">
+            <div class="surface-header">
+              <h3>Schedule, Capacity & Prerequisites</h3>
+            </div>
+            <div class="info-list">
+              <div class="info-item">
+                <span>Day of the Week</span>
+                <strong>Monday</strong>
+              </div>
+              <div class="info-item">
+                <span>Time Slot</span>
+                <strong>07:30 - 10:00 (Morning Slot 1)</strong>
+              </div>
+              <div class="info-item">
+                <span>Classroom / Lab</span>
+                <strong>Room A201</strong>
+              </div>
+              <div class="info-item">
+                <span>Maximum Capacity</span>
+                <strong>40 Students</strong>
+              </div>
+              <div class="info-item">
+                <span>Remaining Available Seats</span>
+                <strong style="color: var(--success)"
+                  >12 Seats Available</strong
+                >
+              </div>
+              <div class="info-item">
+                <span>Prerequisite Requirements</span>
+                <span class="badge badge-success"
+                  >IT101 - Intro to Programming (Completed)</span
+                >
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

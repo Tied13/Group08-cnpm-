@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>View Registration Reports - Admin Console</title>
+    <link rel="stylesheet" href="/static/css/admin.css" />
+  </head>
+  <body>
+    <div class="portal-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="logo-mark">UTH</div>
+          <div>
+            <h2>Admin Console</h2>
+            <span>System Management</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="admin-users.html" class="nav-link">Manage User Accounts</a>
+          <a href="admin-period.html" class="nav-link">Configure Reg Period</a>
+          <a href="admin-courses.html" class="nav-link">Manage Courses</a>
+          <a href="admin-classes.html" class="nav-link"
+            >Create & Cancel Classes</a
+          >
+          <a href="admin-reports.html" class="nav-link active"
+            >View Registration Reports</a
+          >
+        </nav>
+
+        <div class="sidebar-footer">
+          <a href="admin-login.html" class="btn btn-danger-soft btn-block"
+            >Log Out</a
+          >
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <header class="top-bar">
+          <div class="campus-hero-strip">
+            <span
+              >Academic Year 2026 – 2027 • Analytics & Enrollment
+              Statistics</span
+            >
+            <h2>Course Registration Reports & Statistics</h2>
+          </div>
+
+          <div class="semester-picker">
+            <label for="report-sem">Semester</label>
+            <select id="report-sem" onchange="loadReportData()">
+              <option value="2026-1">Semester 1 (2026 - 2027)</option>
+              <option value="2025-2">Semester 2 (2025 - 2026)</option>
+            </select>
+          </div>
+
+          <div class="top-user-area">
+            <div class="system-pill">
+              Report Mode:
+              <strong id="mode-indicator">By Course / Section</strong>
+            </div>
+            <div class="user-profile-chip">
+              <strong>System Administrator</strong>
+              <span>ID: AD202601</span>
+            </div>
+          </div>
+        </header>
+
+        <div class="page-header">
+          <div>
+            <h1>View Registration Reports</h1>
+            <p>
+              Analyze semester registration statistics grouped by course/class
+              section or by individual student credit load.
+            </p>
+          </div>
+        </div>
+
+        <!-- Report Filter Selector -->
+        <section class="surface-card">
+          <div class="form-grid-3" style="align-items: end">
+            <div class="form-group" style="margin-bottom: 0">
+              <label for="report-type">Select Report Type</label>
+              <select id="report-type" onchange="updateReportView()">
+                <option value="section">
+                  By Course / Class Section (Enrollment vs. Max Capacity)
+                </option>
+                <option value="student">
+                  By Student (Registered Courses & Total Credits)
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0">
+              <label for="report-search">Filter Report Rows</label>
+              <input
+                type="text"
+                id="report-search"
+                placeholder="Search by code, section, or student..."
+                oninput="filterReportTable()"
+              />
+            </div>
+
+            <div>
+              <button
+                class="btn btn-primary btn-block"
+                onclick="window.print()"
+              >
+                Print / Export Report
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- No Data Notice -->
+        <div
+          id="no-report-data"
+          class="toast-banner toast-warning hidden"
+          style="text-align: center; padding: 24px"
+        >
+          No data available for this report in the selected semester.
+        </div>
+
+        <div id="reports-container">
+          <!-- Summary KPIs -->
+          <div class="stats-grid">
+            <div class="stat-tile">
+              <span>Total Open Class Sections</span>
+              <strong id="rep-total-sections">0 Sections</strong>
+            </div>
+            <div class="stat-tile">
+              <span>Total Course Registrations</span>
+              <strong id="rep-total-enrollments">0 Enrollments</strong>
+            </div>
+            <div class="stat-tile">
+              <span>Average Capacity Fill Rate</span>
+              <strong id="rep-avg-fill">0.0%</strong>
+            </div>
+            <div class="stat-tile">
+              <span>Average Credits / Student</span>
+              <strong id="rep-avg-credits">0.0 Credits</strong>
+            </div>
+          </div>
+
+          <!-- REPORT VIEW 1: BY COURSE / CLASS SECTION -->
+          <section id="view-by-section" class="surface-card">
+            <div class="surface-header">
+              <h3>Enrollment Statistics by Course / Class Section</h3>
+              <span class="surface-subtitle"
+                >Enrolled student count vs. maximum capacity</span
+              >
+            </div>
+
+            <div class="table-wrap">
+              <table class="clean-table" id="table-by-section">
+                <thead>
+                  <tr>
+                    <th>Section Code</th>
+                    <th>Course Code</th>
+                    <th>Course Name</th>
+                    <th>Assigned Lecturer</th>
+                    <th>Enrolled Count</th>
+                    <th>Max Capacity</th>
+                    <th>Fill Rate</th>
+                    <th>Section Status</th>
+                  </tr>
+                </thead>
+                <tbody id="section-report-tbody">
+                  <!-- Làm trống nội dung sẵn sàng nạp động từ MC / API -->
+                </tbody>
+              </table>
+              <div id="section-rep-pagination"></div>
+            </div>
+          </section>
+
+          <!-- REPORT VIEW 2: BY STUDENT -->
+          <section id="view-by-student" class="surface-card hidden">
+            <div class="surface-header">
+              <h3>Registration Report by Student</h3>
+              <span class="surface-subtitle"
+                >Registered class sections and total registered credits per
+                student</span
+              >
+            </div>
+
+            <div class="table-wrap">
+              <table class="clean-table" id="table-by-student">
+                <thead>
+                  <tr>
+                    <th>Student ID</th>
+                    <th>Student Name</th>
+                    <th>Major</th>
+                    <th>Registered Class Sections</th>
+                    <th>Course Count</th>
+                    <th>Total Credits</th>
+                    <th>Credit Limit Compliance</th>
+                  </tr>
+                </thead>
+                <tbody id="student-report-tbody">
+                  <!-- Làm trống nội dung sẵn sàng nạp động từ MC / API -->
+                </tbody>
+              </table>
+              <div id="student-rep-pagination"></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="/static/js/admin.js"></script>
+    <script src="/static/js/main.js"></script>
+  </body>
+</html>

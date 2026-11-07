@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manage Profile - Student Portal</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+  <body>
+    <div class="portal-layout">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="logo-mark">UTH</div>
+          <div>
+            <h2>Student Portal</h2>
+            <span>Course Registration</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="courses.html" class="nav-link">Search & Register Courses</a>
+          <a href="timetable.html" class="nav-link">Personal Timetable</a>
+          <a href="tuition.html" class="nav-link">Tuition Fee</a>
+          <a href="history.html" class="nav-link">Registration History</a>
+          <a href="profile.html" class="nav-link active">Manage Profile</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <a href="login.html" class="btn btn-danger-soft btn-block">Log Out</a>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="top-bar">
+          <div class="campus-hero-strip">
+            <span>Academic Year 2026 – 2027</span>
+            <h2>Student Course Registration Portal</h2>
+          </div>
+          <div></div>
+          <div class="user-profile-chip">
+            <strong>Alex Nguyen</strong>
+            <span>ID: SV2026001</span>
+          </div>
+        </header>
+
+        <div id="pw-feedback" class="toast-banner hidden"></div>
+
+        <div class="page-header">
+          <div>
+            <h1>Manage Profile & Security</h1>
+            <p>
+              Review your student profile details, update your password, or sign
+              out of your session.
+            </p>
+          </div>
+        </div>
+
+        <div class="two-col-grid">
+          <!-- Personal Profile Details -->
+          <section class="surface-card">
+            <div class="surface-header">
+              <h3>Student Profile Information</h3>
+              <span class="badge badge-success">Active Account</span>
+            </div>
+
+            <div class="info-list">
+              <div class="info-item">
+                <span>Student ID</span>
+                <strong>SV2026001</strong>
+              </div>
+              <div class="info-item">
+                <span>Full Name</span>
+                <strong>Alex Nguyen</strong>
+              </div>
+              <div class="info-item">
+                <span>Role</span>
+                <strong>Student</strong>
+              </div>
+              <div class="info-item">
+                <span>Faculty / Major</span>
+                <strong>Management Information Systems</strong>
+              </div>
+              <div class="info-item">
+                <span>Academic Cohort</span>
+                <strong>2024 – 2028</strong>
+              </div>
+              <div class="info-item">
+                <span>Institutional Email</span>
+                <strong>alex.nguyen@student.edu</strong>
+              </div>
+            </div>
+          </section>
+
+          <!-- Change Password Form -->
+          <section class="surface-card">
+            <div class="surface-header">
+              <h3>Change Account Password</h3>
+            </div>
+
+            <form onsubmit="updatePassword(event)">
+              <div class="form-group">
+                <label for="cur-pw">Current Password</label>
+                <input
+                  type="password"
+                  id="cur-pw"
+                  placeholder="Enter your current password"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="new-pw">New Password</label>
+                <input
+                  type="password"
+                  id="new-pw"
+                  placeholder="Enter new password"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="cfm-pw">Confirm New Password</label>
+                <input
+                  type="password"
+                  id="cfm-pw"
+                  placeholder="Re-enter new password"
+                  required
+                />
+              </div>
+
+              <div style="display: flex; gap: 12px; margin-top: 24px">
+                <button type="submit" class="btn btn-primary">
+                  Save New Password
+                </button>
+                <a href="login.html" class="btn btn-danger-soft"
+                  >Log Out of System</a
+                >
+              </div>
+            </form>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="/static/js/student.js"></script>
+    <script src="/static/js/main.js"></script>
+  </body>
+</html>
