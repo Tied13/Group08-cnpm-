@@ -100,9 +100,45 @@ class Database:
                 sql = f"EXEC {sp_name}"
                 cursor.execute(sql)
 
+            # Move past any non-resultsets (e.g. from internal updates/inserts)
+            while cursor.description is None:
+                if not cursor.nextset():
+                    return None
+
             if cursor.description:
                 columns = [col[0] for col in cursor.description]
                 row = cursor.fetchone()
                 if row:
                     return dict(zip(columns, row))
             return None
+
+    @staticmethod
+    def test_connection():
+        """Test database connection and verify SQL Server accessibility."""
+        try:
+            with Database.get_cursor() as cursor:
+                cursor.execute("SELECT 1 AS IsConnected")
+                row = cursor.fetchone()
+                if row and row[0] == 1:
+                    print(f"[+] Ket noi Microsoft SQL Server ({Config.DB_DATABASE}) thanh cong!")
+                    return True
+        except Exception as e:
+            print(f"[!] Loi ket noi CSDL SQL Server: {e}")
+            print(f"    Vui long kiem tra chuoi ket noi: {Config.get_connection_string()}")
+            return False
+
+
+def close_db(e=None):
+    """
+    Teardown handler for Flask application context.
+    Database class manages connections safely via scoped context managers.
+    """
+    pass
+
+
+def init_sql_server_db():
+    """
+    Verify SQL Server connectivity upon application startup.
+    Keeps compatibility with app.py startup sequence.
+    """
+    return Database.test_connection()

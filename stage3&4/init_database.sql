@@ -460,6 +460,16 @@ BEGIN
         DECLARE @SemesterId INT;
         SELECT @SemesterId = SemesterId FROM dbo.Classes WITH (UPDLOCK) WHERE Id = @ClassId;
 
+        IF @SemesterId IS NULL
+            THROW 50001, N'Class not found.', 1;
+
+        -- Check registration window status
+        IF NOT EXISTS (
+            SELECT 1 FROM dbo.RegistrationPeriods 
+            WHERE SemesterId = @SemesterId AND IsActive = 1 AND SYSDATETIME() BETWEEN StartDate AND EndDate
+        )
+            THROW 50011, N'Course drop period is currently closed.', 1;
+
         IF NOT EXISTS (
             SELECT 1 FROM dbo.Enrollments 
             WHERE StudentId = @StudentId AND ClassId = @ClassId AND Status = 'Enrolled'
@@ -571,11 +581,11 @@ GO
 
 INSERT INTO dbo.Users (UserCode, Username, PasswordHash, FullName, Email, Phone, Role, Status, FailedLoginCount)
 VALUES
-(N'ADM001', N'admin',    N'scrypt:32768:8:1$admin123', N'System Administrator', N'admin@uth.edu.vn',   N'0901000001', N'Admin',    N'Active', 0),
-(N'GV001',  N'gv_quynh', N'scrypt:32768:8:1$pass123',  N'Luu Quynh',           N'quynh.gv@uth.edu.vn',N'0901000002', N'Lecturer', N'Active', 0),
-(N'GV002',  N'gv_duc',   N'scrypt:32768:8:1$pass123',  N'Anh Duc',             N'duc.gv@uth.edu.vn',  N'0901000003', N'Lecturer', N'Active', 0),
-(N'SV001',  N'sv_toan',  N'scrypt:32768:8:1$pass123',  N'Khanh Toan',          N'toan.sv@uth.edu.vn', N'0901000004', N'Student',  N'Active', 0),
-(N'SV002',  N'sv_vuong', N'scrypt:32768:8:1$pass123',  N'The Vuong',           N'vuong.sv@uth.edu.vn',N'0901000005', N'Student',  N'Active', 0);
+(N'ADM001', N'admin',    N'scrypt:32768:8:1$9PrQCb6itj3PbcCa$c861836488852a7bc30a9b3b2f2691940a275daf834197544036128a60923a2e8e28cc397a2c020b1c230aaeead311486150e08ef87328b8f1543dcef80f3548', N'System Administrator', N'admin@uth.edu.vn',   N'0901000001', N'Admin',    N'Active', 0),
+(N'GV001',  N'gv_quynh', N'scrypt:32768:8:1$rbRamLJxEwKNDZL1$366a211299ee971507fd11cda72efde121886c33dc9880f3a0d5549b871ddac0b0046f00a4d60f62d2c11569c6eaa156b8e333f764ff70e14176cb90a6578458',  N'Luu Quynh',           N'quynh.gv@uth.edu.vn',N'0901000002', N'Lecturer', N'Active', 0),
+(N'GV002',  N'gv_duc',   N'scrypt:32768:8:1$rbRamLJxEwKNDZL1$366a211299ee971507fd11cda72efde121886c33dc9880f3a0d5549b871ddac0b0046f00a4d60f62d2c11569c6eaa156b8e333f764ff70e14176cb90a6578458',  N'Anh Duc',             N'duc.gv@uth.edu.vn',  N'0901000003', N'Lecturer', N'Active', 0),
+(N'SV001',  N'sv_toan',  N'scrypt:32768:8:1$rbRamLJxEwKNDZL1$366a211299ee971507fd11cda72efde121886c33dc9880f3a0d5549b871ddac0b0046f00a4d60f62d2c11569c6eaa156b8e333f764ff70e14176cb90a6578458',  N'Khanh Toan',          N'toan.sv@uth.edu.vn', N'0901000004', N'Student',  N'Active', 0),
+(N'SV002',  N'sv_vuong', N'scrypt:32768:8:1$rbRamLJxEwKNDZL1$366a211299ee971507fd11cda72efde121886c33dc9880f3a0d5549b871ddac0b0046f00a4d60f62d2c11569c6eaa156b8e333f764ff70e14176cb90a6578458',  N'The Vuong',           N'vuong.sv@uth.edu.vn',N'0901000005', N'Student',  N'Active', 0);
 
 INSERT INTO dbo.Admins (UserId, AdminCode, OfficeDepartment) VALUES (1, N'ADM001', N'Academic Affairs Office');
 INSERT INTO dbo.Lecturers (UserId, LecturerCode, Department, AcademicDegree) VALUES 

@@ -19,17 +19,21 @@ class Config:
     @classmethod
     def get_connection_string(cls):
         """Build and return an ODBC connection string for pyodbc."""
+        driver = cls.DB_DRIVER if cls.DB_DRIVER.startswith('{') else f"{{{cls.DB_DRIVER}}}"
+        
         if cls.DB_TRUSTED_CONNECTION.lower() in ('yes', 'true', '1'):
             return (
-                f"DRIVER={cls.DB_DRIVER};"
+                f"DRIVER={driver};"
                 f"SERVER={cls.DB_SERVER};"
                 f"DATABASE={cls.DB_DATABASE};"
                 f"Trusted_Connection=yes;"
+                f"TrustServerCertificate=yes;"
             )
         return (
-            f"DRIVER={cls.DB_DRIVER};"
+            f"DRIVER={driver};"
             f"SERVER={cls.DB_SERVER};"
             f"DATABASE={cls.DB_DATABASE};"
             f"UID={cls.DB_USER};"
             f"PWD={cls.DB_PASSWORD};"
+            f"TrustServerCertificate=yes;"
         )
