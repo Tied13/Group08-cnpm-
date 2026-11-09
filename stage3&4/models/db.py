@@ -1,81 +1,108 @@
 import pyodbc
-from flask import g
+from contextlib import contextmanager
 from config import Config
 
-def init_sql_server_db():
-    """Tự động kiểm tra và tạo Database, Bảng & Dữ liệu mẫu trên SQL Server"""
-    master_conn_str = (
-        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-        f"SERVER={Config.DB_SERVER};"
-        f"DATABASE=master;"
-        f"Trusted_Connection=yes;"
-        f"TrustServerCertificate=yes;"
-    )
-    
-    try:
-        conn = pyodbc.connect(master_conn_str, autocommit=True)
-        cursor = conn.cursor()
-        cursor.execute(f"""
-            IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '{Config.DB_NAME}')
-            BEGIN
-                CREATE DATABASE [{Config.DB_NAME}];
-            END
-        """)
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        print(f"[!] Kiểm tra database master: {e}")
+class Database:
+    """Wrapper class providing centralized database operations for MS SQL Server."""
 
-    try:
-        conn = pyodbc.connect(Config.DB_CONNECTION_STRING, autocommit=True)
+    @staticmethod
+    def get_connection():
+        """Create and return a new pyodbc database connection."""
+        conn_str = Config.get_connection_string()
+        return pyodbc.connect(conn_str)
+
+    @staticmethod
+    @contextmanager
+    def get_cursor():
+        """
+        Context manager for database cursors and transaction lifecycles:
+        Automatically commits upon successful completion, and rolls back on exception.
+        """
+        conn = Database.get_connection()
         cursor = conn.cursor()
+        try:
+            yield cursor
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def query_all(query, params=None):
+        """
+        Execute a SELECT statement and return results as a list of dictionaries.
         
-        # Bảng Users
-        cursor.execute("""
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Users')
-            BEGIN
-                CREATE TABLE Users (
-                    Id INT IDENTITY(1,1) PRIMARY KEY,
-                    Username NVARCHAR(50) UNIQUE NOT NULL,
-                    Password NVARCHAR(255) NOT NULL,
-                    FullName NVARCHAR(100) NOT NULL,
-                    Role NVARCHAR(20) CHECK (Role IN ('admin', 'lecturer', 'student')) NOT NULL,
-                    Email NVARCHAR(100),
-                    CreatedAt DATETIME DEFAULT GETDATE()
-                );
-                INSERT INTO Users (Username, Password, FullName, Role) VALUES 
-                ('admin', '123', N'Quản trị viên', 'admin'),
-                ('gv01', '123', N'Giảng viên Nguyễn Văn A', 'lecturer'),
-                ('sv01', '123', N'Sinh viên Trần Văn B', 'student');
-            END
-        """)
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        print(f"[!] Khởi tạo bảng Users: {e}")
+        :param query: SQL query string (use '?' for parameters)
+        :param params: Tuple or list of bind parameters
+        :return: List of dictionaries matching column names
+        """
+        with Database.get_cursor() as cursor:
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
 
-def get_db():
-    if 'db' not in g:
-        g.db = pyodbc.connect(Config.DB_CONNECTION_STRING)
-    return g.db
+            if not cursor.description:
+                return []
 
-def query_db(query, args=(), one=False):
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute(query, args)
-    columns = [col[0] for col in cursor.description] if cursor.description else []
-    results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-    cursor.close()
-    return (results[0] if results else None) if one else results
+            columns = [column[0] for column in cursor.description]
+            results = []
+            for row in cursor.fetchall():
+                results.append(dict(zip(columns, row)))
+            return results
 
-def execute_db(query, args=()):
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute(query, args)
-    conn.commit()
-    cursor.close()
+    @staticmethod
+    def query_one(query, params=None):
+        """
+        Execute a SELECT statement and return a single row dictionary (or None).
+        
+        :param query: SQL query string
+        :param params: Bind parameters
+        :return: Dictionary of the first record or None
+        """
+        results = Database.query_all(query, params)
+        return results[0] if results else None
 
-def close_db(e=None):
-    db = g.pop('db', None)
-    if db is not None:
-        db.close()
+    @staticmethod
+    def execute(query, params=None):
+        """
+        Execute an INSERT, UPDATE, or DELETE statement.
+        
+        :param query: SQL command string
+        :param params: Bind parameters
+        :return: Number of affected rows
+        """
+        with Database.get_cursor() as cursor:
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
+            return cursor.rowcount
+
+    @staticmethod
+    def execute_sp(sp_name, params=None):
+        """
+        Execute a Stored Procedure and fetch its first result set (e.g., IsSuccess, Message).
+        
+        :param sp_name: Stored procedure name
+        :param params: List of parameters passed to the procedure
+        :return: Dictionary representation of the first result row or None
+        """
+        with Database.get_cursor() as cursor:
+            if params:
+                placeholders = ", ".join(["?"] * len(params))
+                sql = f"EXEC {sp_name} {placeholders}"
+                cursor.execute(sql, params)
+            else:
+                sql = f"EXEC {sp_name}"
+                cursor.execute(sql)
+
+            if cursor.description:
+                columns = [col[0] for col in cursor.description]
+                row = cursor.fetchone()
+                if row:
+                    return dict(zip(columns, row))
+            return None
