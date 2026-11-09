@@ -25,8 +25,8 @@ def index():
 
 if __name__ == '__main__':
     print("==================================================")
-    print("Khoi chay he thong Course Registration MVC...")
+    print("Launch the Course Registration system ...")
     init_sql_server_db()
-    print("Truy cap website tai: http://127.0.0.1:5000")
+    print("Access the website at: http://127.0.0.1:5000")
     print("==================================================")
     app.run(debug=True, port=5000)
