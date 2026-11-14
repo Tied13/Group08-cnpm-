@@ -47,7 +47,15 @@ def login():
             flash('Please enter both User ID / Username and Password.', 'warning')
             return render_template('login.html')
 
-        user = UserModel.find_by_username(username)
+        try:
+            user = UserModel.find_by_username(username)
+        except Exception as db_err:
+            flash(
+                "Database connection error: Could not connect to SQL Server or 'CourseRegistrationDB' not found. "
+                f"Please ensure SQL Server is running and run 'init_database.sql' in SSMS first. (Details: {db_err})",
+                'danger',
+            )
+            return render_template('login.html')
 
         if not user:
             flash('Invalid Username or User ID.', 'danger')

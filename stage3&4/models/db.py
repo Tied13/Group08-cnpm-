@@ -1,15 +1,37 @@
+import os
 import pyodbc
 from contextlib import contextmanager
 from config import Config
 
 class Database:
     """Wrapper class providing centralized database operations for MS SQL Server."""
+    _working_server = None
 
-    @staticmethod
-    def get_connection():
-        """Create and return a new pyodbc database connection."""
-        conn_str = Config.get_connection_string()
-        return pyodbc.connect(conn_str)
+    @classmethod
+    def get_connection(cls):
+        """Create and return a new pyodbc database connection with multi-server auto detection."""
+        if cls._working_server:
+            try:
+                return pyodbc.connect(Config.get_connection_string(server=cls._working_server))
+            except Exception:
+                cls._working_server = None
+
+        primary_server = Config.DB_SERVER
+        candidate_servers = [primary_server]
+        if 'DB_SERVER' not in os.environ and primary_server == 'localhost':
+            candidate_servers += [r'.\SQLEXPRESS', r'localhost\SQLEXPRESS', r'(localdb)\MSSQLLocalDB', '.']
+
+        last_error = None
+        for srv in candidate_servers:
+            try:
+                conn_str = Config.get_connection_string(server=srv)
+                conn = pyodbc.connect(conn_str)
+                cls._working_server = srv
+                return conn
+            except Exception as e:
+                last_error = e
+
+        raise last_error
 
     @staticmethod
     @contextmanager
