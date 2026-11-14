@@ -1,6 +1,5 @@
 /* ==========================================================================
-   static/js/lecturer.js  -  PHAN HE GIANG VIEN
-   Nguoi phu trach: Thanh vien 5 - Luu Quynh (Backend Developer: Lecturer & QA Lead)
+   static/js/lecturer.js  -  PHAN HE GIANG VIEN (Faculty & Lecturer Portal)
 
    Chuc nang: xem lich day theo tuan, xem danh sach lop phu trach, xem danh sach
    sinh vien theo lop va xuat CSV, doi mat khau.
@@ -88,7 +87,7 @@ function lecPaginate(key, items, containerId, renderRows) {
   renderRows(items.slice(start, start + p.size), start);
 
   if (!box) return;
-  if (items.length <= LEC_PAGE_SIZE_OPTIONS[0]) { box.innerHTML = ''; return; }
+  if (items.length === 0) { box.innerHTML = ''; return; }
   const from = start + 1;
   const to = Math.min(start + p.size, items.length);
   const sizeOpts = LEC_PAGE_SIZE_OPTIONS

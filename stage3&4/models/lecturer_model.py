@@ -2,7 +2,6 @@
 models/lecturer_model.py
 ========================
 Tang du lieu (Model) cho PHAN HE GIANG VIEN (Lecturer).
-Nguoi phu trach: Thanh vien 5 - Luu Quynh (Backend Developer: Lecturer & QA Lead).
 
 Chuc nang:
     1. LecturerProfileModel  - Thong tin ca nhan + doi mat khau.

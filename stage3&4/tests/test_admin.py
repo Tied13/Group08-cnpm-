@@ -2,7 +2,6 @@
 tests/test_admin.py
 ===================
 Bộ Test Cases & Unit Test cho PHÂN HỆ ADMIN (Stage 4 - Testing & Quality).
-Người phụ trách: Thành viên 3 - Hồng Tân (Backend Developer: Admin Module).
 
 ================================================================================
 BẢNG THIẾT KẾ TEST CASES (TEST CASE SPECIFICATION)
@@ -394,17 +393,17 @@ class FakeDatabase:
                 {'Id': 1, 'UserCode': 'ADM001', 'Username': 'admin', 'PasswordHash': 'hash_admin',
                  'FullName': 'System Administrator', 'Email': 'admin@uth.edu.vn', 'Phone': '0901000001',
                  'Role': 'Admin', 'Status': 'Active', 'FailedLoginCount': 0, 'CreatedAt': '2026-09-01'},
-                {'Id': 2, 'UserCode': 'GV001', 'Username': 'gv_quynh', 'PasswordHash': 'hash_gv1',
-                 'FullName': 'Luu Quynh', 'Email': 'quynh.gv@uth.edu.vn', 'Phone': '0901000002',
+                {'Id': 2, 'UserCode': 'GV001', 'Username': 'gv_nam', 'PasswordHash': 'hash_gv1',
+                 'FullName': 'Le Hoang Nam', 'Email': 'nam.lh@uth.edu.vn', 'Phone': '0901000002',
                  'Role': 'Lecturer', 'Status': 'Active', 'FailedLoginCount': 0, 'CreatedAt': '2026-09-01'},
-                {'Id': 3, 'UserCode': 'GV002', 'Username': 'gv_duc', 'PasswordHash': 'hash_gv2',
-                 'FullName': 'Anh Duc', 'Email': 'duc.gv@uth.edu.vn', 'Phone': '0901000003',
+                {'Id': 3, 'UserCode': 'GV002', 'Username': 'gv_mai', 'PasswordHash': 'hash_gv2',
+                 'FullName': 'Tran Phuong Mai', 'Email': 'mai.ttp@uth.edu.vn', 'Phone': '0901000003',
                  'Role': 'Lecturer', 'Status': 'Active', 'FailedLoginCount': 0, 'CreatedAt': '2026-09-01'},
-                {'Id': 4, 'UserCode': 'SV001', 'Username': 'sv_toan', 'PasswordHash': 'hash_sv1',
-                 'FullName': 'Khanh Toan', 'Email': 'toan.sv@uth.edu.vn', 'Phone': '0901000004',
+                {'Id': 4, 'UserCode': 'SV001', 'Username': 'sv_an', 'PasswordHash': 'hash_sv1',
+                 'FullName': 'Nguyen Van An', 'Email': 'an.sv@uth.edu.vn', 'Phone': '0901000004',
                  'Role': 'Student', 'Status': 'Active', 'FailedLoginCount': 0, 'CreatedAt': '2026-09-01'},
-                {'Id': 5, 'UserCode': 'SV002', 'Username': 'sv_vuong', 'PasswordHash': 'hash_sv2',
-                 'FullName': 'The Vuong', 'Email': 'vuong.sv@uth.edu.vn', 'Phone': '0901000005',
+                {'Id': 5, 'UserCode': 'SV002', 'Username': 'sv_binh', 'PasswordHash': 'hash_sv2',
+                 'FullName': 'Tran Hai Binh', 'Email': 'binh.sv@uth.edu.vn', 'Phone': '0901000005',
                  'Role': 'Student', 'Status': 'Locked', 'FailedLoginCount': 5, 'CreatedAt': '2026-09-01'},
             ],
             'students': {
@@ -602,7 +601,7 @@ class AdminModuleUnitTest(unittest.TestCase):
             day_of_week='Thursday',
             time_slot_id=2,
             max_capacity=40,
-            lecturer_ref='GV001 - Luu Quynh',
+            lecturer_ref='GV001 - Le Hoang Nam',
         )
         self.assertEqual(created['ClassCode'], 'IT102_05')
         self.assertEqual(created['Status'], 'Open')
@@ -724,7 +723,7 @@ class AdminModuleUnitTest(unittest.TestCase):
 
         with self.client.session_transaction() as sess:
             sess['user_id'] = 4
-            sess['username'] = 'sv_toan'
+            sess['username'] = 'sv_an'
             sess['role'] = 'Student'
         forbidden_resp = self.client.get('/admin/api/users')
         self.assertEqual(forbidden_resp.status_code, 403)

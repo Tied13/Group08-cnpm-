@@ -2,7 +2,6 @@
 models/admin_model.py
 =====================
 Tang du lieu (Model) cho PHAN HE ADMIN.
-Nguoi phu trach: Thanh vien 3 - Hong Tan (Backend Developer: Admin Module).
 
 Chuc nang:
     1. AdminUserModel      - Quan ly tai khoan SV/GV (them moi, sua, khoa / mo khoa).

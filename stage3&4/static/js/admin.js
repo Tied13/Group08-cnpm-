@@ -1,7 +1,6 @@
 /* ==========================================================================
    static/js/admin.js
-   Script giao dien PHAN HE ADMIN
-   Nguoi phu trach: Thanh vien 3 - Hong Tan (Backend Developer: Admin Module)
+   Script giao dien PHAN HE ADMIN (System Management Console)
 
    - Ket noi cac form / bang co san trong templates/adminView/*.html voi API
      /admin/api/... (controllers/admin_controller.py).

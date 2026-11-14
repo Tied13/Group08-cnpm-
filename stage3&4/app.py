@@ -21,7 +21,7 @@ app.register_blueprint(student_bp)
 # Route mac dinh: Chuyen huong ve trang dang nhap
 @app.route('/')
 def index():
-    return redirect(url_for('auth_bp.login'))
+    return redirect(url_for('auth.login'))
 
 if __name__ == '__main__':
     print("==================================================")

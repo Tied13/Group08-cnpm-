@@ -67,6 +67,16 @@ function formatCurrency(amount) {
     return Number(amount).toLocaleString('vi-VN') + ' VNĐ';
 }
 
+function _fmt_time(val) {
+    if (!val) return '';
+    if (typeof val === 'string') {
+        const parts = val.split(':');
+        if (parts.length >= 2) return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+        return val;
+    }
+    return String(val);
+}
+
 /* Hiển thị Toast / Banner thông báo */
 let stuBannerTimer = null;
 function showFeedback(bannerId, message, type = 'success') {
@@ -135,38 +145,49 @@ function stuPaginate(key, items, containerId, renderRows) {
     renderRows(items.slice(start, start + p.size), start);
 
     if (!box) return;
-    if (items.length <= STU_PAGE_SIZE_OPTIONS[0]) {
+    if (items.length === 0) {
         box.innerHTML = '';
         return;
     }
 
-    const sizeOpts = STU_PAGE_SIZE_OPTIONS
+    const from = start + 1;
+    const to = Math.min(start + p.size, items.length);
+    const sizeOpts = [5, 10, 20, 50]
         .map((n) => `<option value="${n}" ${n === p.size ? 'selected' : ''}>${n} / trang</option>`)
         .join('');
 
     let btns = '';
     for (let i = 1; i <= pages; i++) {
-        btns += `<button type="button" class="page-btn ${i === p.page ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        if (i === 1 || i === pages || Math.abs(i - p.page) <= 1) {
+            btns += `<button type="button" class="page-btn ${i === p.page ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        } else if (btns.slice(-24) !== '<span class="page-dots">…</span>') {
+            btns += '<span class="page-dots">…</span>';
+        }
     }
 
     box.innerHTML = `
-        <div class="pagination-bar" style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding:8px 0;">
-            <div style="font-size:0.82rem; color:var(--text-muted);">
-                Hiển thị <strong>${start + 1}</strong> - <strong>${Math.min(start + p.size, items.length)}</strong> trên <strong>${items.length}</strong> dòng
+        <div class="pagination-bar" style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding:8px 0; border-top:1px solid var(--border-light, #e2e8f0);">
+            <div class="pagination-info" style="font-size:0.82rem; color:var(--text-muted);">
+                Hiển thị <strong>${from}–${to}</strong> trên <strong>${items.length}</strong> dòng
             </div>
-            <div style="display:flex; gap:6px; align-items:center;">
-                <select class="page-size-select" style="padding:4px 8px; font-size:0.82rem; border-radius:2px; border:1px solid var(--border-medium); margin-right:8px;">
+            <div class="pagination-controls" style="display:flex; gap:6px; align-items:center;">
+                <select class="page-size-select" style="padding:4px 8px; font-size:0.82rem; border-radius:4px; border:1px solid var(--border-medium); margin-right:8px;">
                     ${sizeOpts}
                 </select>
-                <div class="page-buttons">${btns}</div>
+                <button type="button" class="page-btn" data-page="${p.page - 1}" ${p.page <= 1 ? 'disabled' : ''}>&lsaquo;</button>
+                <div class="page-buttons" style="display:inline-flex; gap:4px;">${btns}</div>
+                <button type="button" class="page-btn" data-page="${p.page + 1}" ${p.page >= pages ? 'disabled' : ''}>&rsaquo;</button>
             </div>
         </div>
     `;
 
-    box.querySelectorAll('.page-btn').forEach((btn) => {
+    box.querySelectorAll('button.page-btn').forEach((btn) => {
         btn.onclick = () => {
-            p.page = parseInt(btn.dataset.page, 10);
-            stuPaginate(key, items, containerId, renderRows);
+            const newPage = parseInt(btn.dataset.page, 10);
+            if (!isNaN(newPage) && newPage >= 1 && newPage <= pages) {
+                p.page = newPage;
+                stuPaginate(key, items, containerId, renderRows);
+            }
         };
     });
 

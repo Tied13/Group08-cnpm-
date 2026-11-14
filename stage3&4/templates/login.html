@@ -3,15 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Login - University System</title>
+    <title>Login - Course Registration System</title>
     <link rel="stylesheet" href="/static/css/style.css" />
-    />
   </head>
   <body>
     <main class="login-screen">
       <div class="login-box">
         <div class="login-campus-banner">
-          <span>University Academic Portal</span>
+          <span>University Academic Portal • Course Registration System</span>
         </div>
 
         <div class="login-body">
@@ -21,16 +20,27 @@
             <p>Sign in with your credentials to access the portal</p>
           </div>
 
-          <div id="login-error" class="toast-banner toast-danger hidden"></div>
+          <!-- Server-side Flashed Notification Messages -->
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              {% for category, message in messages %}
+                <div class="toast-banner toast-{{ 'danger' if category == 'danger' else ('warning' if category == 'warning' else ('info' if category == 'info' else 'success')) }}" style="margin-bottom: 16px;">
+                  {{ message }}
+                </div>
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
 
-          <form onsubmit="handleAuth(event)">
+          <form method="POST" action="/login">
             <div class="form-group">
               <label for="username">User ID / Username</label>
               <input
                 type="text"
                 id="username"
-                placeholder="Enter your User ID"
+                name="username"
+                placeholder="Enter Student ID, Lecturer ID, or Username"
                 required
+                autofocus
               />
             </div>
 
@@ -39,6 +49,7 @@
               <input
                 type="password"
                 id="password"
+                name="password"
                 placeholder="Enter your password"
                 required
               />
@@ -52,8 +63,7 @@
                 margin-bottom: 18px;
               "
             >
-              For security, inactive sessions automatically log out after 15
-              minutes.
+              For security, accounts will be locked after 5 consecutive failed login attempts.
             </p>
 
             <button type="submit" class="btn btn-primary btn-block">

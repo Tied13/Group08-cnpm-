@@ -1,8 +1,7 @@
 """
 controllers/admin_controller.py
 ===============================
-Controller cho PHAN HE ADMIN.
-Nguoi phu trach: Thanh vien 3 - Hong Tan (Backend Developer: Admin Module).
+Controller cho PHAN HE ADMIN (Quan tri he thong).
 
 Gom 2 nhom route (tien to /admin):
   1. Route render giao dien HTML (adminView/*.html).

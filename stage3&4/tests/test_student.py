@@ -447,9 +447,9 @@ class FakeStudentDB:
     def create_initial_state():
         return {
             'users': [
-                {'Id': 4, 'UserCode': 'SV001', 'Username': 'sv_toan', 'FullName': 'Khanh Toan', 'Email': 'toan@uth.edu.vn', 'Phone': '0901000004', 'Role': 'Student', 'Status': 'Active'},
-                {'Id': 5, 'UserCode': 'SV002', 'Username': 'sv_vuong', 'FullName': 'The Vuong', 'Email': 'vuong@uth.edu.vn', 'Phone': '0901000005', 'Role': 'Student', 'Status': 'Active'},
-                {'Id': 2, 'UserCode': 'GV001', 'Username': 'gv_quynh', 'FullName': 'Luu Quynh', 'Email': 'quynh@uth.edu.vn', 'Phone': '0901000002', 'Role': 'Lecturer', 'Status': 'Active'},
+                {'Id': 4, 'UserCode': 'SV001', 'Username': 'sv_an', 'FullName': 'Nguyen Van An', 'Email': 'an.sv@uth.edu.vn', 'Phone': '0901000004', 'Role': 'Student', 'Status': 'Active'},
+                {'Id': 5, 'UserCode': 'SV002', 'Username': 'sv_binh', 'FullName': 'Tran Hai Binh', 'Email': 'binh.sv@uth.edu.vn', 'Phone': '0901000005', 'Role': 'Student', 'Status': 'Active'},
+                {'Id': 2, 'UserCode': 'GV001', 'Username': 'gv_nam', 'FullName': 'Le Hoang Nam', 'Email': 'nam.lh@uth.edu.vn', 'Phone': '0901000002', 'Role': 'Lecturer', 'Status': 'Active'},
             ],
             'students': {
                 4: {'StudentCode': 'SV001', 'AdministrativeClass': 'MIS2301', 'Major': 'Management Information Systems', 'Faculty': 'IT', 'EnrollmentYear': 2023},
@@ -782,7 +782,7 @@ class TestStudentModule(unittest.TestCase):
         with self.client.session_transaction() as sess:
             sess['user_id'] = 2
             sess['role'] = 'Lecturer'
-            sess['username'] = 'gv_quynh'
+            sess['username'] = 'gv_nam'
 
         res_forbidden = self.client.get('/student/api/me')
         self.assertEqual(res_forbidden.status_code, 403)
@@ -792,7 +792,7 @@ class TestStudentModule(unittest.TestCase):
         with self.client.session_transaction() as sess:
             sess['user_id'] = 4
             sess['role'] = 'Student'
-            sess['username'] = 'sv_toan'
+            sess['username'] = 'sv_an'
 
         res_ok = self.client.get('/student/api/me')
         self.assertEqual(res_ok.status_code, 200)

@@ -1,8 +1,7 @@
 """
 controllers/lecturer_controller.py
 ==================================
-Controller cho PHAN HE GIANG VIEN.
-Nguoi phu trach: Thanh vien 5 - Luu Quynh (Backend Developer: Lecturer & QA Lead).
+Controller cho PHAN HE GIANG VIEN (Lecturer Portal).
 
 Gom 2 nhom route (tien to /lecturer):
   1. Route render giao dien HTML (lecturerView/*.html). Ho tro ca dang ngan

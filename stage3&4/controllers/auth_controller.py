@@ -15,19 +15,19 @@ def rbac_middleware():
 
     # Kiểm tra xem người dùng đã đăng nhập chưa
     if 'user_id' not in session:
-        flash('Vui lòng đăng nhập để tiếp tục.', 'warning')
+        flash('Please log in to continue.', 'warning')
         return redirect(url_for('auth.login'))
 
-    role = session.get('role') # Ví dụ: 'Admin', 'Lecturer', 'Student'
+    role = session.get('role')  # 'Admin', 'Lecturer', 'Student'
 
     # Chặn sinh viên hoặc giảng viên cố tình truy cập đường dẫn của Admin
     if path.startswith('/admin') and role != 'Admin':
-        flash('Bạn không có quyền truy cập trang quản trị Admin!', 'danger')
+        flash('Access denied: You do not have permission to access Admin Portal.', 'danger')
         return redirect(url_for('auth.dashboard'))
 
     # Chặn sinh viên truy cập đường dẫn của Giảng viên
     if path.startswith('/lecturer') and role not in ['Admin', 'Lecturer']:
-        flash('Bạn không có quyền truy cập phân hệ Giảng viên!', 'danger')
+        flash('Access denied: You do not have permission to access Lecturer Portal.', 'danger')
         return redirect(url_for('auth.dashboard'))
 
 
@@ -35,19 +35,27 @@ def rbac_middleware():
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    # Nếu đã đăng nhập thì chuyển hướng ngay về đúng phân hệ
+    if request.method == 'GET' and 'user_id' in session and session.get('role'):
+        return redirect(url_for('auth.dashboard'))
+
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = (request.form.get('username') or '').strip()
+        password = (request.form.get('password') or '').strip()
+
+        if not username or not password:
+            flash('Please enter both User ID / Username and Password.', 'warning')
+            return render_template('login.html')
 
         user = UserModel.find_by_username(username)
 
         if not user:
-            flash('Tên đăng nhập không tồn tại.', 'danger')
+            flash('Invalid Username or User ID.', 'danger')
             return render_template('login.html')
 
         # Kiểm tra tài khoản đã bị khóa chưa
         if user['Status'] == 'Locked':
-            flash('Tài khoản của bạn đã bị khóa do nhập sai mật khẩu quá 5 lần. Vui lòng liên hệ Admin.', 'danger')
+            flash('Your account has been locked due to exceeding 5 failed login attempts. Please contact Administrator.', 'danger')
             return render_template('login.html')
 
         # So khớp mật khẩu
@@ -56,9 +64,17 @@ def login():
             UserModel.reset_failed_login(user['Id'])
             session['user_id'] = user['Id']
             session['username'] = user['Username']
-            session['role'] = user['Role'] # 'Admin', 'Student', 'Lecturer'
+            session['user_code'] = user['UserCode']
+            session['full_name'] = user['FullName']
+            session['role'] = user['Role']  # 'Admin', 'Student', 'Lecturer'
             
-            flash('Đăng nhập thành công!', 'success')
+            # Chuyển hướng trực tiếp vào phân hệ phù hợp
+            if user['Role'] == 'Admin':
+                return redirect(url_for('admin_bp.admin_home'))
+            elif user['Role'] == 'Lecturer':
+                return redirect(url_for('lecturer_bp.lecturer_home'))
+            elif user['Role'] == 'Student':
+                return redirect(url_for('student_bp.student_home'))
             return redirect(url_for('auth.dashboard'))
         else:
             # Đăng nhập sai: Tăng FailedLoginCount
@@ -66,25 +82,37 @@ def login():
             remaining = 5 - (user['FailedLoginCount'] + 1)
             
             if remaining <= 0:
-                flash('Tài khoản của bạn đã bị khóa do nhập sai mật khẩu quá 5 lần.', 'danger')
+                flash('Your account has been locked due to exceeding 5 failed login attempts.', 'danger')
             else:
-                flash(f'Mật khẩu không chính xác. Bạn còn {remaining} lần thử.', 'warning')
+                flash(f'Incorrect password. You have {remaining} attempt(s) remaining.', 'warning')
             
             return render_template('login.html')
 
     return render_template('login.html')
 
+
 @auth_bp.route('/logout')
 def logout():
     session.clear()
-    flash('Đã đăng xuất thành công.', 'info')
     return redirect(url_for('auth.login'))
+
 
 @auth_bp.route('/dashboard')
 def dashboard():
+    """Điều hướng người dùng về đúng phân hệ theo vai trò (Role-based Routing)."""
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
-    return render_template('dashboard.html', role=session.get('role'))
+    
+    role = session.get('role')
+    if role == 'Admin':
+        return redirect(url_for('admin_bp.admin_home'))
+    elif role == 'Lecturer':
+        return redirect(url_for('lecturer_bp.lecturer_home'))
+    elif role == 'Student':
+        return redirect(url_for('student_bp.student_home'))
+    
+    return redirect(url_for('auth.login'))
+
 
 @auth_bp.route('/change-password', methods=['POST'])
 def change_password():
@@ -94,13 +122,15 @@ def change_password():
     old_password = request.form.get('old_password')
     new_password = request.form.get('new_password')
     
-    user = UserModel.find_by_username(session['username'])
-    if not UserModel.verify_password(user['PasswordHash'], old_password):
-        flash('Mật khẩu cũ không chính xác.', 'danger')
+    user = UserModel.find_by_id(session['user_id'])
+    if not user or not UserModel.verify_password(user['PasswordHash'], old_password):
+        flash('Current password is incorrect.', 'danger')
         return redirect(url_for('auth.dashboard'))
     
-    import hashlib
-    new_hash = hashlib.sha256(new_password.encode()).hexdigest()
-    UserModel.update_password(user['Id'], new_hash)
-    flash('Đổi mật khẩu thành công!', 'success')
+    if not new_password or len(new_password) < 6:
+        flash('New password must be at least 6 characters.', 'danger')
+        return redirect(url_for('auth.dashboard'))
+
+    UserModel.update_password(user['Id'], new_password)
+    flash('Password updated successfully!', 'success')
     return redirect(url_for('auth.dashboard'))
