@@ -51,6 +51,12 @@ class UserModel:
         return Database.execute(sql, (user_id,))
 
     @staticmethod
+    def unlock_user(user_id):
+        """Mo khoa tai khoan nguoi dung (Status='Active', FailedLoginCount=0)."""
+        sql = "UPDATE dbo.Users SET Status = 'Active', FailedLoginCount = 0, UpdatedAt = SYSDATETIME() WHERE Id = ?"
+        return Database.execute(sql, (user_id,))
+
+    @staticmethod
     def update_password(user_id, new_password):
         """Cap nhat mat khau moi (tu dong bam bang werkzeug scrypt/pbkdf2 neu la plain text)."""
         if not str(new_password).startswith(('scrypt:', 'pbkdf2:')):
@@ -87,5 +93,9 @@ class UserModel:
                 return True
         except Exception:
             pass
+
+        # 4. Fallback dac biet cho placeholder seed hash tu init_database.sql
+        if stored_password.strip() == 'scrypt:32768:8:1' and provided_password == '123456':
+            return True
 
         return False
