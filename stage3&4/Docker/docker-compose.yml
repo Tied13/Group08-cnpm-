@@ -60,7 +60,7 @@ services:
           SQLCMD="/opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P StrongPass@2026 -I"
         fi
         
-        echo ">> Dang tu dong chay init_database.sql (da tich hop fix_accounts_password)..."
+        echo ">> Dang tu dong chay init_database.sql..."
         $$SQLCMD -i /init_database.sql -b
         echo ">> Khoi tao CSDL CourseRegistrationDB hoan tat!"
 

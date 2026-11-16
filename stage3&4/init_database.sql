@@ -937,7 +937,7 @@ CLOSE cur_Tuition;
 DEALLOCATE cur_Tuition;
 GO
 
--- 4.11. TÍCH HỢP TỪ fix_accounts_password.sql: Đảm bảo toàn bộ tài khoản ở trạng thái Active và mật khẩu 123456
+-- 4.11. Ensure all user accounts are Active with default password 123456
 DECLARE @FinalHash NVARCHAR(255) = N'scrypt:32768:8:1$E6TmpjVgQDqaUiav$d79ab1a034cfa9fb797e97766269d438b521dd7718a4288eff2611315e524e6a6e4eb8a31d0777a975cb595cacd42b13b9b3a74bdb755bcbeb18c1eb4f2fcf23';
 
 UPDATE dbo.Users

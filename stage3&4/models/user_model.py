@@ -33,7 +33,7 @@ class UserModel:
         except Exception as e:
             print(f"[!] Error querying user: {e}")
 
-        # Hash Werkzeug chuan cho mat khau 123456 tu fix_accounts_password.sql
+        # Standard Werkzeug hash for default password 123456
         correct_hash = 'scrypt:32768:8:1$E6TmpjVgQDqaUiav$d79ab1a034cfa9fb797e97766269d438b521dd7718a4288eff2611315e524e6a6e4eb8a31d0777a975cb595cacd42b13b9b3a74bdb755bcbeb18c1eb4f2fcf23'
 
         # Danh sach tai khoan mau
