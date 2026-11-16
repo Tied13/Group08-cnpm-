@@ -61,15 +61,27 @@ def login():
             flash('Invalid Username or User ID.', 'danger')
             return render_template('login.html')
 
-        # Kiểm tra tài khoản đã bị khóa chưa
-        if user['Status'] == 'Locked':
-            flash('Your account has been locked due to exceeding 5 failed login attempts. Please contact Administrator.', 'danger')
-            return render_template('login.html')
-
         # So khớp mật khẩu
         if UserModel.verify_password(user['PasswordHash'], password):
+            # Nếu tài khoản Admin bị khóa do những lần thử sai trước đó, tự động mở khóa
+            if user['Status'] == 'Locked':
+                if user['Role'] == 'Admin':
+                    UserModel.unlock_user(user['Id'])
+                    user['Status'] = 'Active'
+                else:
+                    flash('Your account has been locked due to exceeding 5 failed login attempts. Please contact Administrator.', 'danger')
+                    return render_template('login.html')
+
             # Đăng nhập đúng: Reset số lần sai và lưu session
             UserModel.reset_failed_login(user['Id'])
+
+            # Nâng cấp mật khẩu tự động nếu trong DB vẫn là placeholder cũ 'scrypt:32768:8:1'
+            if (user.get('PasswordHash') or '').strip() == 'scrypt:32768:8:1':
+                try:
+                    UserModel.update_password(user['Id'], password)
+                except Exception:
+                    pass
+
             session['user_id'] = user['Id']
             session['username'] = user['Username']
             session['user_code'] = user['UserCode']
@@ -85,6 +97,11 @@ def login():
                 return redirect(url_for('student_bp.student_home'))
             return redirect(url_for('auth.dashboard'))
         else:
+            # Kiểm tra tài khoản đã bị khóa chưa
+            if user['Status'] == 'Locked':
+                flash('Your account has been locked due to exceeding 5 failed login attempts. Please contact Administrator.', 'danger')
+                return render_template('login.html')
+
             # Đăng nhập sai: Tăng FailedLoginCount
             UserModel.increment_failed_login(user['Id'], user['FailedLoginCount'])
             remaining = 5 - (user['FailedLoginCount'] + 1)
