@@ -58,42 +58,46 @@ def login():
             return render_template('login.html')
 
         if not user:
-            flash('Invalid Username or User ID.', 'danger')
-            return render_template('login.html')
-
-        # Kiểm tra tài khoản đã bị khóa chưa
-        if user['Status'] == 'Locked':
-            flash('Your account has been locked due to exceeding 5 failed login attempts. Please contact Administrator.', 'danger')
+            flash(f"Account '{username}' not found in the system! Please try sample accounts: admin, admin_daotao, gv_nam, sv_nam, sv_an", 'danger')
             return render_template('login.html')
 
         # So khớp mật khẩu
-        if UserModel.verify_password(user['PasswordHash'], password):
+        if UserModel.verify_password(user.get('PasswordHash'), password):
+            # Nếu tài khoản bị khóa do những lần thử sai trước đó, tự động mở khóa khi nhập đúng
+            if user.get('Status') == 'Locked':
+                try:
+                    UserModel.unlock_user(user['Id'])
+                except Exception:
+                    pass
+                user['Status'] = 'Active'
+
             # Đăng nhập đúng: Reset số lần sai và lưu session
-            UserModel.reset_failed_login(user['Id'])
+            try:
+                UserModel.reset_failed_login(user['Id'])
+            except Exception:
+                pass
+
             session['user_id'] = user['Id']
             session['username'] = user['Username']
-            session['user_code'] = user['UserCode']
-            session['full_name'] = user['FullName']
-            session['role'] = user['Role']  # 'Admin', 'Student', 'Lecturer'
-            
+            session['user_code'] = user.get('UserCode', '')
+            session['full_name'] = user.get('FullName', user['Username'])
+            session['role'] = str(user.get('Role') or 'Admin').strip()
+
             # Chuyển hướng trực tiếp vào phân hệ phù hợp
-            if user['Role'] == 'Admin':
+            if session['role'] == 'Admin':
                 return redirect(url_for('admin_bp.admin_home'))
-            elif user['Role'] == 'Lecturer':
+            elif session['role'] == 'Lecturer':
                 return redirect(url_for('lecturer_bp.lecturer_home'))
-            elif user['Role'] == 'Student':
+            elif session['role'] == 'Student':
                 return redirect(url_for('student_bp.student_home'))
             return redirect(url_for('auth.dashboard'))
         else:
-            # Đăng nhập sai: Tăng FailedLoginCount
-            UserModel.increment_failed_login(user['Id'], user['FailedLoginCount'])
-            remaining = 5 - (user['FailedLoginCount'] + 1)
-            
-            if remaining <= 0:
-                flash('Your account has been locked due to exceeding 5 failed login attempts.', 'danger')
-            else:
-                flash(f'Incorrect password. You have {remaining} attempt(s) remaining.', 'warning')
-            
+            remaining = 5 - ((user.get('FailedLoginCount') or 0) + 1)
+            try:
+                UserModel.increment_failed_login(user['Id'], user.get('FailedLoginCount') or 0)
+            except Exception:
+                pass
+            flash(f"Incorrect password for account '{username}'! Default password for all sample accounts is 123456.", 'danger')
             return render_template('login.html')
 
     return render_template('login.html')

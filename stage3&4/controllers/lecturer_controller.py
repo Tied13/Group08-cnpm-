@@ -45,8 +45,8 @@ def ensure_lecturer_role():
         return None
     if request.path.startswith('/lecturer/api/'):
         if 'user_id' not in session:
-            return jsonify({'success': False, 'message': 'Vui lòng đăng nhập để tiếp tục.'}), 401
-        return jsonify({'success': False, 'message': 'Bạn không có quyền truy cập chức năng Giảng viên.'}), 403
+            return jsonify({'success': False, 'message': 'Please log in to continue.'}), 401
+        return jsonify({'success': False, 'message': 'You do not have permission to access Lecturer Portal.'}), 403
     return redirect('/login')
 
 
@@ -90,7 +90,7 @@ def api_endpoint(func):
             return api_error(exc.message, exc.status_code)
         except Exception as exc:  # pragma: no cover - phong khi loi CSDL ngoai du kien
             current_app.logger.exception('Lecturer API error: %s', exc)
-            return api_error(f'Lỗi máy chủ: {exc}', 500)
+            return api_error(f'Server error: {exc}', 500)
     return wrapper
 
 
@@ -184,7 +184,7 @@ def api_schedule():
     """Lich giang day theo tuan: ?semester_id=&week= (khong co week -> tuan hien tai)."""
     semester_id = _semester_id_arg()
     if not semester_id:
-        return api_error('Chưa có học kỳ nào trong hệ thống.', 404)
+        return api_error('No semester found in the system.', 404)
     week = request.args.get('week')
     data = LecturerScheduleModel.build_weekly_schedule(_lecturer_id(), semester_id, week)
     return api_success(data)
@@ -224,4 +224,4 @@ def api_change_password():
         data.get('new_password', ''),
         data.get('confirm_password', ''),
     )
-    return api_success(message='Đổi mật khẩu thành công.')
+    return api_success(message='Password changed successfully.')

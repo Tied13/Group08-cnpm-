@@ -6,7 +6,6 @@
     <title>View Student List - Lecturer Portal</title>
     <link rel="stylesheet" href="/static/css/lecturer.css" />
   </head>
-  </head>
   <body>
     <div class="portal-layout">
       <!-- Sidebar -->
@@ -43,7 +42,7 @@
       <main class="main-content">
         <header class="top-bar">
           <div class="campus-hero-strip">
-            <span>Academic Year 2026 – 2027 • Enrolled Class Roster</span>
+            <span>Academic Year 2026 - 2027 - Enrolled Class Roster</span>
             <h2>Class Section Student List & Export</h2>
           </div>
 
@@ -87,7 +86,7 @@
             <div class="form-group">
               <label for="section-select">Select Assigned Class Section</label>
               <select id="section-select" onchange="loadStudentRoster()">
-                <!-- Sẽ nạp danh sách lớp động từ API / URL parameter -->
+                <!-- Dynamic class sections loaded from API -->
               </select>
             </div>
 
@@ -154,7 +153,7 @@
                 </tr>
               </thead>
               <tbody id="student-tbody">
-                <!-- Làm trống nội dung sẵn sàng nạp động từ MC / API -->
+                <!-- Dynamic content loaded from API -->
               </tbody>
             </table>
             <div id="student-pagination"></div>

@@ -41,8 +41,8 @@ DAY_NAMES = {
 }
 
 CSV_HEADERS = [
-    'STT', 'MSSV', 'Họ và tên', 'Lớp', 'Ngành',
-    'Email', 'Số điện thoại', 'Ngày đăng ký', 'Trạng thái',
+    'No.', 'Student ID', 'Full Name', 'Class', 'Major',
+    'Email', 'Phone Number', 'Registration Date', 'Status',
 ]
 # Ky tu dau o co the bi Excel hieu nham thanh cong thuc (CSV injection)
 _CSV_FORMULA_PREFIXES = ('=', '+', '-', '@', '\t', '\r')
@@ -142,7 +142,7 @@ class LecturerProfileModel:
             (user_id,),
         )
         if not row:
-            raise LecturerNotFoundError('Không tìm thấy hồ sơ giảng viên.', 404)
+            raise LecturerNotFoundError('Lecturer profile not found.', 404)
         row.pop('PasswordHash', None)
         return row
 
@@ -150,23 +150,23 @@ class LecturerProfileModel:
     def change_password(user_id, current_password, new_password, confirm_password):
         """Doi mat khau: kiem tra mat khau cu, do dai, xac nhan, khac mat khau cu."""
         if not current_password or not new_password or not confirm_password:
-            raise LecturerValidationError('Vui lòng nhập đầy đủ các trường mật khẩu.')
+            raise LecturerValidationError('Please enter all required password fields.')
         if len(new_password) < MIN_PASSWORD_LENGTH:
             raise LecturerValidationError(
-                f'Mật khẩu mới phải có ít nhất {MIN_PASSWORD_LENGTH} ký tự.')
+                f'New password must be at least {MIN_PASSWORD_LENGTH} characters.')
         if new_password != confirm_password:
-            raise LecturerValidationError('Mật khẩu xác nhận không khớp.')
+            raise LecturerValidationError('Password confirmation does not match.')
         if new_password == current_password:
-            raise LecturerValidationError('Mật khẩu mới phải khác mật khẩu hiện tại.')
+            raise LecturerValidationError('New password must be different from current password.')
 
         user = Database.query_one(
             "/* q:lecturer_password_hash */ SELECT Id, PasswordHash FROM dbo.Users WHERE Id = ?",
             (user_id,),
         )
         if not user:
-            raise LecturerNotFoundError('Không tìm thấy tài khoản.', 404)
+            raise LecturerNotFoundError('User account not found.', 404)
         if not check_password_hash(user['PasswordHash'], current_password):
-            raise LecturerValidationError('Mật khẩu hiện tại không chính xác.')
+            raise LecturerValidationError('Current password is incorrect.')
 
         Database.execute(
             "/* q:lecturer_update_password */ "
@@ -270,9 +270,9 @@ class LecturerClassModel:
             (class_id,),
         )
         if not row:
-            raise LecturerNotFoundError('Không tìm thấy lớp học phần.', 404)
+            raise LecturerNotFoundError('Class section not found.', 404)
         if row['LecturerId'] != lecturer_id:
-            raise LecturerPermissionError('Bạn không được phân công giảng dạy lớp học phần này.', 403)
+            raise LecturerPermissionError('You are not assigned to teach this class section.', 403)
         return row
 
     @staticmethod
@@ -327,7 +327,7 @@ class LecturerScheduleModel:
         try:
             week = int(week)
         except (TypeError, ValueError):
-            raise LecturerValidationError('Số tuần không hợp lệ.')
+            raise LecturerValidationError('Invalid week number.')
         week = min(max(week, 1), total_weeks)
 
         week_start = first_monday + timedelta(days=7 * (week - 1))
@@ -344,7 +344,7 @@ class LecturerScheduleModel:
     def build_weekly_schedule(lecturer_id, semester_id, week=None, today=None):
         semester = LecturerClassModel.get_semester(semester_id)
         if not semester:
-            raise LecturerNotFoundError('Không tìm thấy học kỳ.', 404)
+            raise LecturerNotFoundError('Semester not found.', 404)
 
         info = LecturerScheduleModel.week_info(semester, week, today)
         classes = LecturerClassModel.list_assigned_classes(lecturer_id, semester_id)

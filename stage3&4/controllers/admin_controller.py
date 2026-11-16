@@ -46,8 +46,8 @@ def ensure_admin_role():
         return None
     if request.path.startswith('/admin/api/'):
         if 'user_id' not in session:
-            return jsonify({'success': False, 'message': 'Vui lòng đăng nhập để tiếp tục.'}), 401
-        return jsonify({'success': False, 'message': 'Bạn không có quyền truy cập chức năng Admin.'}), 403
+            return jsonify({'success': False, 'message': 'Please log in to continue.'}), 401
+        return jsonify({'success': False, 'message': 'You do not have permission to access Admin Portal.'}), 403
     return redirect('/login')
 
 
@@ -91,9 +91,9 @@ def api_endpoint(func):
             return api_error(exc.message, exc.status_code)
         except Exception as exc:  # pragma: no cover - phong khi loi CSDL ngoai du kien
             if type(exc).__name__ == 'IntegrityError':
-                return api_error('Dữ liệu vi phạm ràng buộc CSDL (trùng lặp hoặc khóa ngoại).', 409)
+                return api_error('Database constraint violation (duplicate or foreign key error).', 409)
             current_app.logger.exception('Admin API error: %s', exc)
-            return api_error(f'Lỗi máy chủ: {exc}', 500)
+            return api_error(f'Server error: {exc}', 500)
     return wrapper
 
 
@@ -114,7 +114,7 @@ def _semester_id_arg():
         return semester_id
     semester_id = AdminPeriodModel.get_current_semester_id()
     if not semester_id:
-        raise AdminValidationError('Chưa có học kỳ nào trong hệ thống.')
+        raise AdminValidationError('No semester found in the system.')
     return semester_id
 
 
@@ -232,7 +232,7 @@ def api_create_user():
         enrollment_year=data.get('enrollment_year'),
         academic_degree=data.get('academic_degree'),
     )
-    return api_success(user, f"Đã tạo tài khoản {user['Role']} {user['UserCode']} thành công.", 201)
+    return api_success(user, f"Successfully created {user['Role']} account {user['UserCode']}.", 201)
 
 
 @admin_bp.route('/api/users/<int:user_id>', methods=['GET'])
@@ -253,23 +253,23 @@ def api_update_user(user_id):
         phone=data.get('phone'),
         role=data.get('role'),
     )
-    return api_success(user, 'Đã cập nhật thông tin tài khoản.')
+    return api_success(user, 'Account information updated successfully.')
 
 
 @admin_bp.route('/api/users/<int:user_id>/status', methods=['POST'])
 @api_endpoint
 def api_set_user_status(user_id):
     result = AdminUserModel.set_user_status(user_id, _payload().get('status'))
-    action = 'mở khóa' if result['Status'] == 'Active' else 'khóa'
-    return api_success(result, f"Đã {action} tài khoản {result['UserCode']}.")
+    action = 'unlocked' if result['Status'] == 'Active' else 'locked'
+    return api_success(result, f"Account {result['UserCode']} has been {action}.")
 
 
 @admin_bp.route('/api/users/<int:user_id>/toggle-status', methods=['POST'])
 @api_endpoint
 def api_toggle_user_status(user_id):
     result = AdminUserModel.toggle_user_status(user_id)
-    action = 'mở khóa' if result['Status'] == 'Active' else 'khóa'
-    return api_success(result, f"Đã {action} tài khoản {result['UserCode']}.")
+    action = 'unlocked' if result['Status'] == 'Active' else 'locked'
+    return api_success(result, f"Account {result['UserCode']} has been {action}.")
 
 
 # ==========================================================================
@@ -297,7 +297,7 @@ def api_list_courses():
 @api_endpoint
 def api_create_course():
     course = AdminCourseModel.create_course(**_course_kwargs(_payload()))
-    return api_success(course, f"Đã tạo môn học {course['CourseCode']}.", 201)
+    return api_success(course, f"Course {course['CourseCode']} created successfully.", 201)
 
 
 @admin_bp.route('/api/courses/<int:course_id>', methods=['GET'])
@@ -310,15 +310,15 @@ def api_get_course(course_id):
 @api_endpoint
 def api_update_course(course_id):
     course = AdminCourseModel.update_course(course_id, **_course_kwargs(_payload()))
-    return api_success(course, f"Đã cập nhật môn học {course['CourseCode']}.")
+    return api_success(course, f"Course {course['CourseCode']} updated successfully.")
 
 
 @admin_bp.route('/api/courses/<int:course_id>', methods=['DELETE'])
 @api_endpoint
 def api_delete_course(course_id):
     result = AdminCourseModel.delete_course(course_id)
-    note = ' (ẩn khỏi danh mục, giữ lại lịch sử)' if result['DeleteMode'] == 'soft' else ''
-    return api_success(result, f"Đã xóa môn học {result['CourseCode']}{note}.")
+    note = ' (hidden from catalog, history retained)' if result['DeleteMode'] == 'soft' else ''
+    return api_success(result, f"Course {result['CourseCode']} deleted{note}.")
 
 
 @admin_bp.route('/api/enrollments/override', methods=['POST'])
@@ -331,9 +331,8 @@ def api_manual_override():
         action=data.get('action'),
         admin_user_id=_current_admin_id(),
     )
-    verb = 'thêm' if result['Action'] == 'ADD' else 'xóa'
-    preposition = 'vào' if result['Action'] == 'ADD' else 'khỏi'
-    return api_success(result, f"Đã {verb} sinh viên {result['StudentCode']} {preposition} lớp {result['ClassCode']}.")
+    verb = 'added to' if result['Action'] == 'ADD' else 'removed from'
+    return api_success(result, f"Student {result['StudentCode']} successfully {verb} class {result['ClassCode']}.")
 
 
 # ==========================================================================
@@ -360,7 +359,7 @@ def api_create_class():
         lecturer_id=data.get('lecturer_id'),
         lecturer_ref=data.get('lecturer'),
     )
-    return api_success(created, f"Đã mở lớp {created['ClassCode']} và phân công {created['LecturerName']}.", 201)
+    return api_success(created, f"Class {created['ClassCode']} opened and assigned to {created['LecturerName']}.", 201)
 
 
 @admin_bp.route('/api/classes/<int:class_id>/cancel', methods=['POST'])
@@ -369,7 +368,7 @@ def api_cancel_class(class_id):
     result = AdminClassModel.cancel_class(class_id, _current_admin_id())
     return api_success(
         result,
-        f"Đã hủy lớp {result['ClassCode']}. {result['AffectedStudents']} đăng ký của sinh viên đã chuyển sang Cancelled.",
+        f"Class {result['ClassCode']} cancelled. {result['AffectedStudents']} student enrollments changed to Cancelled.",
     )
 
 
@@ -401,14 +400,14 @@ def api_save_period():
         min_credits=data.get('min_credits'),
         max_credits=data.get('max_credits'),
     )
-    return api_success(period, 'Đã lưu cấu hình đợt đăng ký.', 201)
+    return api_success(period, 'Registration period configuration saved.', 201)
 
 
 @admin_bp.route('/api/periods/<int:period_id>/active', methods=['POST'])
 @api_endpoint
 def api_set_period_active(period_id):
     result = AdminPeriodModel.set_period_active(period_id, _payload().get('is_active', True))
-    return api_success(result, 'Đã mở đợt đăng ký.' if result['IsActive'] else 'Đã đóng đợt đăng ký.')
+    return api_success(result, 'Registration period opened.' if result['IsActive'] else 'Registration period closed.')
 
 
 # ==========================================================================

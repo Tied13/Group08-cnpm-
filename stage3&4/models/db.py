@@ -160,7 +160,23 @@ def close_db(e=None):
 
 def init_sql_server_db():
     """
-    Verify SQL Server connectivity upon application startup.
-    Keeps compatibility with app.py startup sequence.
+    Verify SQL Server connectivity upon application startup,
+    and automatically ensure all seed users have the correct password hash and Active status
+    (integrated from fix_accounts_password.sql).
     """
-    return Database.test_connection()
+    connected = Database.test_connection()
+    if connected:
+        try:
+            # Hash Werkzeug scrypt chuẩn cho mật khẩu '123456' từ fix_accounts_password.sql
+            correct_hash = 'scrypt:32768:8:1$E6TmpjVgQDqaUiav$d79ab1a034cfa9fb797e97766269d438b521dd7718a4288eff2611315e524e6a6e4eb8a31d0777a975cb595cacd42b13b9b3a74bdb755bcbeb18c1eb4f2fcf23'
+            sql = """
+                UPDATE dbo.Users
+                SET PasswordHash = ?,
+                    Status = 'Active',
+                    FailedLoginCount = 0
+            """
+            rows = Database.execute(sql, (correct_hash,))
+            print(f"[+] Da dong bo {rows} tai khoan ve mat khau 123456 va mo khoa Active (fix_accounts_password)!")
+        except Exception as e:
+            print(f"[!] Thong tin khoi tao User: {e}")
+    return connected

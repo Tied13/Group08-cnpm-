@@ -63,8 +63,8 @@ function formatDateTime(iso) {
 }
 
 function formatCurrency(amount) {
-    if (amount === null || amount === undefined || isNaN(amount)) return '0 VNĐ';
-    return Number(amount).toLocaleString('vi-VN') + ' VNĐ';
+    if (amount === null || amount === undefined || isNaN(amount)) return '0 VND';
+    return Number(amount).toLocaleString('en-US') + ' VND';
 }
 
 function _fmt_time(val) {
@@ -109,7 +109,7 @@ async function stuGet(path) {
         return await res.json();
     } catch (err) {
         console.error('Fetch GET Error:', err);
-        showFeedback('feedback-banner', 'Lỗi kết nối máy chủ!', 'danger');
+        showFeedback('feedback-banner', 'Server connection error!', 'danger');
         return null;
     }
 }
@@ -131,7 +131,7 @@ async function stuPost(path, data) {
         return await res.json();
     } catch (err) {
         console.error('Fetch POST Error:', err);
-        return { success: false, message: 'Lỗi kết nối máy chủ!' };
+        return { success: false, message: 'Server connection error!' };
     }
 }
 
@@ -168,7 +168,7 @@ function stuPaginate(key, items, containerId, renderRows) {
     box.innerHTML = `
         <div class="pagination-bar" style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding:8px 0; border-top:1px solid var(--border-light, #e2e8f0);">
             <div class="pagination-info" style="font-size:0.82rem; color:var(--text-muted);">
-                Hiển thị <strong>${from}–${to}</strong> trên <strong>${items.length}</strong> dòng
+                Showing <strong>${from}–${to}</strong> of <strong>${items.length}</strong> entries
             </div>
             <div class="pagination-controls" style="display:flex; gap:6px; align-items:center;">
                 <select class="page-size-select" style="padding:4px 8px; font-size:0.82rem; border-radius:4px; border:1px solid var(--border-medium); margin-right:8px;">
@@ -328,20 +328,20 @@ function renderAvailableCourses() {
             // Nút hành động tương ứng với trạng thái
             let actionHtml = '';
             if (c.IsEnrolled) {
-                actionHtml = `<span class="badge badge-success" style="padding:6px 10px; font-weight:700;">Đã Đăng Ký</span>`;
+                actionHtml = `<span class="badge badge-success" style="padding:6px 10px; font-weight:700;">Enrolled</span>`;
             } else if (c.CanRegister) {
                 actionHtml = `
                     <button type="button" class="btn btn-primary btn-sm" onclick="registerCourse(${c.Id})">
-                        Đăng Ký
+                        Register
                     </button>
-                    <a href="course-details.html?class_id=${c.Id}" class="btn btn-soft btn-sm" title="Chi tiết môn học">
-                        Chi tiết
+                    <a href="course-details.html?class_id=${c.Id}" class="btn btn-soft btn-sm" title="Course details">
+                        Details
                     </a>
                 `;
             } else {
                 actionHtml = `
                     <button type="button" class="btn btn-soft btn-sm" disabled style="opacity:0.6; cursor:not-allowed;" title="${escapeHtml(c.ReasonDisabled)}">
-                        Không thể ĐK
+                        Unavailable
                     </button>
                     <small style="display:block; color:var(--danger); font-size:0.72rem; margin-top:3px;">
                         ${escapeHtml(c.ReasonDisabled)}
@@ -351,17 +351,17 @@ function renderAvailableCourses() {
 
             // Hiển thị sĩ số và chỗ trống
             const seatBadge = c.RemainingSeats <= 0
-                ? `<span class="badge badge-danger">Hết chỗ (0/${c.MaxCapacity})</span>`
+                ? `<span class="badge badge-danger">Full (0/${c.MaxCapacity})</span>`
                 : (c.RemainingSeats <= 5
-                    ? `<span class="badge badge-warning">Còn ${c.RemainingSeats}/${c.MaxCapacity}</span>`
-                    : `<span class="badge badge-info">Còn ${c.RemainingSeats}/${c.MaxCapacity}</span>`);
+                    ? `<span class="badge badge-warning">${c.RemainingSeats}/${c.MaxCapacity} left</span>`
+                    : `<span class="badge badge-info">${c.RemainingSeats}/${c.MaxCapacity} left</span>`);
 
             // Hiển thị môn tiên quyết
             const prereqDisplay = c.PrerequisiteCode
                 ? (c.PrerequisiteMet
                     ? `<span style="color:var(--success); font-weight:600;">✓ ${escapeHtml(c.PrerequisiteCode)}</span>`
-                    : `<span style="color:var(--danger); font-weight:600;">✗ ${escapeHtml(c.PrerequisiteCode)} (Chưa đạt)</span>`)
-                : '<span style="color:var(--text-muted);">Không có</span>';
+                    : `<span style="color:var(--danger); font-weight:600;">✗ ${escapeHtml(c.PrerequisiteCode)} (Not passed)</span>`)
+                : '<span style="color:var(--text-muted);">None</span>';
 
             return `
                 <tr>
@@ -373,12 +373,12 @@ function renderAvailableCourses() {
                     </td>
                     <td><span class="badge badge-primary">${escapeHtml(c.ClassCode)}</span></td>
                     <td><strong>${escapeHtml(c.Credits)}</strong></td>
-                    <td>${escapeHtml(c.LecturerName || 'Chưa phân công')}</td>
+                    <td>${escapeHtml(c.LecturerName || 'Unassigned')}</td>
                     <td>
                         <div style="font-size:0.84rem;">
-                            <strong>${escapeHtml(c.DayNameVi)}</strong> • ${escapeHtml(c.TimeRange)}
+                            <strong>${escapeHtml(c.DayNameVi)}</strong> - ${escapeHtml(c.TimeRange)}
                         </div>
-                        <div style="font-size:0.76rem; color:var(--text-muted);">Phòng: ${escapeHtml(c.Room)}</div>
+                        <div style="font-size:0.76rem; color:var(--text-muted);">Room: ${escapeHtml(c.Room)}</div>
                     </td>
                     <td>${prereqDisplay}</td>
                     <td>${seatBadge}</td>
@@ -408,19 +408,19 @@ function renderRegisteredCourses() {
                 <td><strong>${escapeHtml(c.CourseCode)}</strong></td>
                 <td><strong>${escapeHtml(c.CourseName)}</strong></td>
                 <td><span class="badge badge-primary">${escapeHtml(c.ClassCode)}</span></td>
-                <td><strong>${escapeHtml(c.Credits)} TC</strong></td>
-                <td>${escapeHtml(c.LecturerName || 'Chưa phân công')}</td>
+                <td><strong>${escapeHtml(c.Credits)} credits</strong></td>
+                <td>${escapeHtml(c.LecturerName || 'Unassigned')}</td>
                 <td>
                     <div style="font-size:0.84rem;">
-                        <strong>${escapeHtml(c.DayNameVi)}</strong> • ${escapeHtml(c.TimeRange)}
+                        <strong>${escapeHtml(c.DayNameVi)}</strong> - ${escapeHtml(c.TimeRange)}
                     </div>
-                    <div style="font-size:0.76rem; color:var(--text-muted);">Phòng: ${escapeHtml(c.Room)}</div>
+                    <div style="font-size:0.76rem; color:var(--text-muted);">Room: ${escapeHtml(c.Room)}</div>
                 </td>
                 <td><span class="badge badge-success">Enrolled</span></td>
                 <td>
                     <button type="button" class="btn btn-danger-soft btn-sm"
                             onclick="openCancel(${c.ClassId}, '${escapeHtml(c.CourseCode)}', '${escapeHtml(c.CourseName)}', '${escapeHtml(c.ClassCode)}')">
-                        Hủy Môn
+                        Drop
                     </button>
                 </td>
             </tr>
@@ -432,10 +432,10 @@ function renderRegisteredCourses() {
 async function registerCourse(classId) {
     const res = await stuPost('/register', { class_id: classId });
     if (res && res.success) {
-        showFeedback('feedback-banner', res.message || 'Đăng ký môn học thành công!', 'success');
+        showFeedback('feedback-banner', res.message || 'Course registration successful!', 'success');
         await loadCourseModules();
     } else {
-        const msg = (res && res.message) || 'Đăng ký môn học thất bại.';
+        const msg = (res && res.message) || 'Course registration failed.';
         showFeedback('feedback-banner', msg, 'danger');
     }
 }
@@ -453,7 +453,7 @@ function openCancel(classId, courseCode, courseName, classCode) {
                 [${escapeHtml(courseCode)}] ${escapeHtml(courseName)}
             </div>
             <div style="font-size:0.85rem; color:var(--text-secondary); margin-top:4px;">
-                Mã lớp học phần: <strong>${escapeHtml(classCode)}</strong>
+                Section Code: <strong>${escapeHtml(classCode)}</strong>
             </div>
         `;
     }
@@ -474,10 +474,10 @@ async function confirmCancel() {
 
     const res = await stuPost('/drop', { class_id: classId });
     if (res && res.success) {
-        showFeedback('feedback-banner', res.message || 'Hủy môn học thành công!', 'success');
+        showFeedback('feedback-banner', res.message || 'Course dropped successfully!', 'success');
         await loadCourseModules();
     } else {
-        const msg = (res && res.message) || 'Hủy môn học thất bại.';
+        const msg = (res && res.message) || 'Course drop failed.';
         showFeedback('feedback-banner', msg, 'danger');
     }
 }
@@ -533,7 +533,7 @@ async function loadTimetable() {
     if (!res || !res.success) {
         if (board) board.innerHTML = '';
         if (emptyNotice) {
-            emptyNotice.textContent = (res && res.message) || 'Không tải được thời khóa biểu.';
+            emptyNotice.textContent = (res && res.message) || 'Failed to load timetable.';
             emptyNotice.classList.remove('hidden');
         }
         return;
@@ -544,10 +544,10 @@ async function loadTimetable() {
     studentState.totalWeeks = data.week.total_weeks;
 
     // Cập nhật nhãn tuần & ngày tháng
-    stuSetText('current-week-display', `Tuần ${data.week.week} / ${data.week.total_weeks}`);
+    stuSetText('current-week-display', `Week ${data.week.week} / ${data.week.total_weeks}`);
     stuSetText('week-date-range',
-        `Lịch học trong tuần: ${formatDate(data.week.week_start)} — ${formatDate(data.week.week_end)} (Học kỳ: ${data.semester.SemesterName})`);
-    stuSetText('enrolled-count', `${data.total_enrolled} Lớp (${data.total_credits} Tín chỉ)`);
+        `Weekly Schedule: ${formatDate(data.week.week_start)} - ${formatDate(data.week.week_end)} (Semester: ${data.semester.SemesterName})`);
+    stuSetText('enrolled-count', `${data.total_enrolled} Classes (${data.total_credits} Credits)`);
 
     // Render lưới thời khóa biểu
     const days = data.days || [];
@@ -557,7 +557,7 @@ async function loadTimetable() {
     if (!board) return;
     board.style.gridTemplateColumns = `115px repeat(${days.length}, 1fr)`;
 
-    let html = '<div class="tt-col-header">Ca / Giờ học</div>';
+    let html = '<div class="tt-col-header">Time / Slot</div>';
     html += days.map((d) => `
         <div class="tt-col-header">
             ${escapeHtml(d.name_vi)}<br>
@@ -568,7 +568,7 @@ async function loadTimetable() {
     slots.forEach((slot, slotIdx) => {
         html += `
             <div class="tt-time-slot">
-                <strong>Ca ${escapeHtml(slot.SlotNumber)}</strong>
+                <strong>Slot ${escapeHtml(slot.SlotNumber)}</strong>
                 <span>${_fmt_time(slot.StartTime)} - ${_fmt_time(slot.EndTime)}</span>
             </div>
         `;
@@ -580,13 +580,13 @@ async function loadTimetable() {
                 return `
                     <div class="tt-card ${colorClass}" style="margin-bottom:4px;">
                         <div>
-                            <strong>${escapeHtml(s.CourseCode)} • ${escapeHtml(s.ClassCode)}</strong>
+                            <strong>${escapeHtml(s.CourseCode)} - ${escapeHtml(s.ClassCode)}</strong>
                             <span>${escapeHtml(s.CourseName)}</span>
                         </div>
                         <div style="font-size:0.72rem; margin-top:6px; border-top:1px dashed rgba(0,0,0,0.1); padding-top:4px;">
-                            <span>📍 Phòng: <strong>${escapeHtml(s.Room)}</strong></span>
-                            <span>👨‍🏫 GV: ${escapeHtml(s.LecturerName || 'TBA')}</span>
-                            <span>🎖️ ${escapeHtml(s.Credits)} Tín chỉ</span>
+                            <span>Room: <strong>${escapeHtml(s.Room)}</strong></span>
+                            <span>Lecturer: ${escapeHtml(s.LecturerName || 'TBA')}</span>
+                            <span>${escapeHtml(s.Credits)} Credits</span>
                         </div>
                     </div>
                 `;
@@ -599,7 +599,7 @@ async function loadTimetable() {
     board.innerHTML = html;
 
     if (emptyNotice) {
-        emptyNotice.textContent = 'Tuần này không có buổi học nào.';
+        emptyNotice.textContent = 'No classes scheduled for this week.';
         emptyNotice.classList.toggle('hidden', sessions.length > 0);
     }
 }
@@ -618,7 +618,7 @@ async function loadTuitionData() {
 
     const res = await stuGet(`/tuition?semester_id=${studentState.semesterId || ''}`);
     if (!res || !res.success) {
-        showFeedback('feedback-banner', (res && res.message) || 'Không tải được bảng kê học phí.', 'danger');
+        showFeedback('feedback-banner', (res && res.message) || 'Failed to load tuition statement.', 'danger');
         return;
     }
 
@@ -626,14 +626,14 @@ async function loadTuitionData() {
     const s = data.summary;
 
     // Cập nhật 4 thẻ thống kê
-    stuSetText('stat-total-courses', `${s.total_courses} Môn học`);
-    stuSetText('stat-total-credits', `${s.total_credits} Tín chỉ`);
-    stuSetText('stat-rate', `${formatCurrency(s.unit_price)} / TC`);
+    stuSetText('stat-total-courses', `${s.total_courses} Courses`);
+    stuSetText('stat-total-credits', `${s.total_credits} Credits`);
+    stuSetText('stat-rate', `${formatCurrency(s.unit_price)} / credit`);
     stuSetText('stat-total-fee', formatCurrency(s.total_amount));
 
     const statusBadge = stuEl('billing-status');
     if (statusBadge) {
-        statusBadge.textContent = `Trạng thái: ${s.payment_status} (${s.billing_status})`;
+        statusBadge.textContent = `Status: ${s.payment_status} (${s.billing_status})`;
         statusBadge.className = `badge ${s.payment_status === 'Paid' ? 'badge-success' : (s.payment_status === 'Partial' ? 'badge-warning' : 'badge-primary')}`;
     }
 
@@ -695,7 +695,7 @@ async function loadHistoryData() {
                 <td><strong>${escapeHtml(h.CourseCode)}</strong></td>
                 <td>${escapeHtml(h.CourseName)}</td>
                 <td><span class="badge badge-primary">${escapeHtml(h.ClassCode)}</span></td>
-                <td><strong>${escapeHtml(h.Credits)} TC</strong></td>
+                <td><strong>${escapeHtml(h.Credits)} credits</strong></td>
                 <td>
                     <span class="badge ${h.StatusClass}">
                         ${h.StatusBadge}
@@ -722,8 +722,8 @@ async function loadProfileData() {
         infoItems[0].querySelector('strong').textContent = p.StudentCode || p.UserCode;
         infoItems[1].querySelector('strong').textContent = p.FullName;
         infoItems[2].querySelector('strong').textContent = p.Role;
-        infoItems[3].querySelector('strong').textContent = `${p.Faculty} • ${p.Major}`;
-        infoItems[4].querySelector('strong').textContent = `Khóa ${p.EnrollmentYear} (${p.AdministrativeClass})`;
+        infoItems[3].querySelector('strong').textContent = `${p.Faculty} - ${p.Major}`;
+        infoItems[4].querySelector('strong').textContent = `Cohort ${p.EnrollmentYear} (${p.AdministrativeClass})`;
         infoItems[5].querySelector('strong').textContent = p.Email;
     }
 }
@@ -735,15 +735,15 @@ async function updatePassword(event) {
     const conPw = stuEl('confirm-password')?.value;
 
     if (!curPw || !newPw || !conPw) {
-        showFeedback('pw-feedback', 'Vui lòng điền đầy đủ các trường mật khẩu.', 'danger');
+        showFeedback('pw-feedback', 'Please fill in all password fields.', 'danger');
         return;
     }
     if (newPw.length < 6) {
-        showFeedback('pw-feedback', 'Mật khẩu mới phải có ít nhất 6 ký tự.', 'danger');
+        showFeedback('pw-feedback', 'New password must be at least 6 characters.', 'danger');
         return;
     }
     if (newPw !== conPw) {
-        showFeedback('pw-feedback', 'Mật khẩu xác nhận không khớp.', 'danger');
+        showFeedback('pw-feedback', 'Password confirmation does not match.', 'danger');
         return;
     }
 
@@ -754,12 +754,12 @@ async function updatePassword(event) {
     });
 
     if (res && res.success) {
-        showFeedback('pw-feedback', res.message || 'Đổi mật khẩu thành công!', 'success');
+        showFeedback('pw-feedback', res.message || 'Password updated successfully!', 'success');
         if (stuEl('current-password')) stuEl('current-password').value = '';
         if (stuEl('new-password')) stuEl('new-password').value = '';
         if (stuEl('confirm-password')) stuEl('confirm-password').value = '';
     } else {
-        showFeedback('pw-feedback', (res && res.message) || 'Đổi mật khẩu thất bại.', 'danger');
+        showFeedback('pw-feedback', (res && res.message) || 'Failed to update password.', 'danger');
     }
 }
 
@@ -779,7 +779,7 @@ async function loadCourseDetails() {
     // Cập nhật tiêu đề trang
     const headerTitle = document.querySelector('.page-header h1');
     if (headerTitle) {
-        headerTitle.textContent = `${c.CourseCode} — ${c.CourseName}`;
+        headerTitle.textContent = `${c.CourseCode} - ${c.CourseName}`;
     }
 
     // Cập nhật danh sách chi tiết
@@ -787,8 +787,8 @@ async function loadCourseDetails() {
     if (infoItems.length >= 5) {
         infoItems[0].querySelector('strong').textContent = c.CourseCode;
         infoItems[1].querySelector('strong').textContent = c.ClassCode;
-        infoItems[2].querySelector('strong').textContent = `${c.Credits} Tín chỉ`;
-        infoItems[3].querySelector('strong').textContent = c.LecturerName || 'Chưa phân công';
+        infoItems[2].querySelector('strong').textContent = `${c.Credits} Credits`;
+        infoItems[3].querySelector('strong').textContent = c.LecturerName || 'Unassigned';
         infoItems[4].querySelector('strong').textContent = `${c.SemesterName} (${c.AcademicYear})`;
     }
 
@@ -796,17 +796,17 @@ async function loadCourseDetails() {
     const regBtn = document.querySelector('.page-header button');
     if (regBtn) {
         if (c.IsEnrolled) {
-            regBtn.textContent = 'Đã Đăng Ký Lớp Này';
+            regBtn.textContent = 'Already Enrolled';
             regBtn.className = 'btn btn-soft';
             regBtn.disabled = true;
         } else {
-            regBtn.textContent = 'Đăng Ký Học Phần Này';
+            regBtn.textContent = 'Register For This Class';
             regBtn.className = 'btn btn-primary';
             regBtn.onclick = async () => {
                 const r = await stuPost('/register', { class_id: c.Id });
                 const toast = stuEl('detail-toast');
                 if (toast) {
-                    toast.textContent = (r && r.message) || 'Kết quả đăng ký';
+                    toast.textContent = (r && r.message) || 'Registration result';
                     toast.className = `toast-banner toast-${r && r.success ? 'success' : 'danger'}`;
                     toast.classList.remove('hidden');
                 }
@@ -834,7 +834,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             studentState.profile = p;
             userChip.innerHTML = `
                 <strong>${escapeHtml(p.FullName)}</strong>
-                <span>MSSV: ${escapeHtml(p.StudentCode || p.UserCode)}</span>
+                <span>Student ID: ${escapeHtml(p.StudentCode || p.UserCode)}</span>
             `;
         }
     }

@@ -1,10 +1,4 @@
-/* ==========================================================================
-   PROJECT: COURSE REGISTRATION SYSTEM (GROUP 08 - CNPM)
-   FILE: init_database.sql
-   ARCHITECTURE: 100% Class Diagram Mapping (Users, Students, Lecturers, Admins, 
-                 Courses, Classes, Enrollments, Tuitions, RegistrationPeriods, etc.)
-   RDBMS: Microsoft SQL Server (T-SQL)
-   ========================================================================== */
+
 
 USE master;
 GO
@@ -20,6 +14,11 @@ CREATE DATABASE CourseRegistrationDB;
 GO
 
 USE CourseRegistrationDB;
+GO
+
+SET ANSI_NULLS ON;
+GO
+SET QUOTED_IDENTIFIER ON;
 GO
 
 /* ==========================================================================
@@ -580,46 +579,57 @@ GO
    Default password for all initial accounts: 123456
    ========================================================================== */
 
-DECLARE @DefaultPasswordHash NVARCHAR(255) = N'scrypt:32768:8:1';
+DECLARE @DefaultPasswordHash NVARCHAR(255) = N'scrypt:32768:8:1$E6TmpjVgQDqaUiav$d79ab1a034cfa9fb797e97766269d438b521dd7718a4288eff2611315e524e6a6e4eb8a31d0777a975cb595cacd42b13b9b3a74bdb755bcbeb18c1eb4f2fcf23';
 
 -- 4.1. Insert System Users (Admins, Lecturers, Students)
 INSERT INTO dbo.Users (UserCode, Username, PasswordHash, FullName, Email, Phone, Role, Status, FailedLoginCount)
 VALUES
 -- Administrators (Id: 1, 2)
-(N'ADM001', N'admin',         @DefaultPasswordHash, N'Nguyễn Văn Quản',      N'admin@uth.edu.vn',    N'0901000001', N'Admin',    N'Active', 0),
-(N'ADM002', N'admin_daotao',  @DefaultPasswordHash, N'Trần Thị Bích Loan',   N'loan.ttb@uth.edu.vn', N'0901000002', N'Admin',    N'Active', 0),
+(N'ADM001', N'admin',         @DefaultPasswordHash, N'Nguyen Van Quan',      N'admin@uth.edu.vn',    N'0901000001', N'Admin',    N'Active', 0),
+(N'ADM002', N'admin_daotao',  @DefaultPasswordHash, N'Tran Thi Bich Loan',   N'loan.ttb@uth.edu.vn', N'0901000002', N'Admin',    N'Active', 0),
 
--- Lecturers (Id: 3 to 10)
-(N'GV001',  N'gv_nam',        @DefaultPasswordHash, N'TS. Lê Hoàng Nam',     N'nam.lh@uth.edu.vn',   N'0902000001', N'Lecturer', N'Active', 0),
-(N'GV002',  N'gv_mai',        @DefaultPasswordHash, N'ThS. Trần Phương Mai', N'mai.ttp@uth.edu.vn',  N'0902000002', N'Lecturer', N'Active', 0),
-(N'GV003',  N'gv_hieu',       @DefaultPasswordHash, N'PGS.TS. Nguyễn Trọng Hiếu', N'hieu.nt@uth.edu.vn', N'0902000003', N'Lecturer', N'Active', 0),
-(N'GV004',  N'gv_thanh',      @DefaultPasswordHash, N'ThS. Phạm Bá Thành',   N'thanh.pb@uth.edu.vn', N'0902000004', N'Lecturer', N'Active', 0),
-(N'GV005',  N'gv_lan',        @DefaultPasswordHash, N'TS. Vũ Ngọc Lan',      N'lan.vn@uth.edu.vn',   N'0902000005', N'Lecturer', N'Active', 0),
-(N'GV006',  N'gv_hung',       @DefaultPasswordHash, N'ThS. Đỗ Quang Hùng',   N'hung.dq@uth.edu.vn',  N'0902000006', N'Lecturer', N'Active', 0),
-(N'GV007',  N'gv_dung',       @DefaultPasswordHash, N'TS. Hoàng Anh Dũng',   N'dung.ha@uth.edu.vn',  N'0902000007', N'Lecturer', N'Active', 0),
-(N'GV008',  N'gv_huong',      @DefaultPasswordHash, N'ThS. Ngô Thu Hương',   N'huong.nt@uth.edu.vn', N'0902000008', N'Lecturer', N'Active', 0),
+-- Lecturers (Id: 3 to 10, 31, 32)
+(N'GV001',  N'gv_nam',        @DefaultPasswordHash, N'Dr. Le Hoang Nam',     N'nam.lh@uth.edu.vn',   N'0902000001', N'Lecturer', N'Active', 0),
+(N'GV002',  N'gv_mai',        @DefaultPasswordHash, N'MSc. Tran Phuong Mai', N'mai.ttp@uth.edu.vn',  N'0902000002', N'Lecturer', N'Active', 0),
+(N'GV003',  N'gv_hieu',       @DefaultPasswordHash, N'Assoc. Prof. Nguyen Trong Hieu', N'hieu.nt@uth.edu.vn', N'0902000003', N'Lecturer', N'Active', 0),
+(N'GV004',  N'gv_thanh',      @DefaultPasswordHash, N'MSc. Pham Ba Thanh',   N'thanh.pb@uth.edu.vn', N'0902000004', N'Lecturer', N'Active', 0),
+(N'GV005',  N'gv_lan',        @DefaultPasswordHash, N'Dr. Vu Ngoc Lan',      N'lan.vn@uth.edu.vn',   N'0902000005', N'Lecturer', N'Active', 0),
+(N'GV006',  N'gv_hung',       @DefaultPasswordHash, N'MSc. Do Quang Hung',   N'hung.dq@uth.edu.vn',  N'0902000006', N'Lecturer', N'Active', 0),
+(N'GV007',  N'gv_dung',       @DefaultPasswordHash, N'Dr. Hoang Anh Dung',   N'dung.ha@uth.edu.vn',  N'0902000007', N'Lecturer', N'Active', 0),
+(N'GV008',  N'gv_huong',      @DefaultPasswordHash, N'MSc. Ngo Thu Huong',   N'huong.nt@uth.edu.vn', N'0902000008', N'Lecturer', N'Active', 0),
 
 -- Students (Id: 11 to 30)
-(N'SV001',  N'sv_an',         @DefaultPasswordHash, N'Nguyễn Văn An',        N'an.sv@uth.edu.vn',    N'0903000001', N'Student',  N'Active', 0),
-(N'SV002',  N'sv_binh',       @DefaultPasswordHash, N'Trần Hải Bình',        N'binh.sv@uth.edu.vn',  N'0903000002', N'Student',  N'Active', 0),
-(N'SV003',  N'sv_chau',       @DefaultPasswordHash, N'Lê Minh Châu',         N'chau.sv@uth.edu.vn',  N'0903000003', N'Student',  N'Active', 0),
-(N'SV004',  N'sv_dung',       @DefaultPasswordHash, N'Phạm Hoàng Dũng',      N'dung.sv@uth.edu.vn',  N'0903000004', N'Student',  N'Active', 0),
-(N'SV005',  N'sv_giang',      @DefaultPasswordHash, N'Vũ Hương Giang',       N'giang.sv@uth.edu.vn', N'0903000005', N'Student',  N'Active', 0),
-(N'SV006',  N'sv_ha',         @DefaultPasswordHash, N'Đặng Thu Hà',          N'ha.sv@uth.edu.vn',    N'0903000006', N'Student',  N'Active', 0),
-(N'SV007',  N'sv_khoa',       @DefaultPasswordHash, N'Bùi Đăng Khoa',        N'khoa.sv@uth.edu.vn',  N'0903000007', N'Student',  N'Active', 0),
-(N'SV008',  N'sv_linh',       @DefaultPasswordHash, N'Hoàng Mỹ Linh',        N'linh.sv@uth.edu.vn',  N'0903000008', N'Student',  N'Active', 0),
-(N'SV009',  N'sv_minh',       @DefaultPasswordHash, N'Ngô Quang Minh',       N'minh.sv@uth.edu.vn',  N'0903000009', N'Student',  N'Active', 0),
-(N'SV010',  N'sv_nga',        @DefaultPasswordHash, N'Dương Thúy Nga',       N'nga.sv@uth.edu.vn',   N'0903000010', N'Student',  N'Active', 0),
-(N'SV011',  N'sv_phong',      @DefaultPasswordHash, N'Trịnh Quốc Phong',     N'phong.sv@uth.edu.vn', N'0903000011', N'Student',  N'Active', 0),
-(N'SV012',  N'sv_quan',       @DefaultPasswordHash, N'Đỗ Hồng Quân',         N'quan.sv@uth.edu.vn',  N'0903000012', N'Student',  N'Active', 0),
-(N'SV013',  N'sv_son',        @DefaultPasswordHash, N'Lý Thái Sơn',          N'son.sv@uth.edu.vn',   N'0903000013', N'Student',  N'Active', 0),
-(N'SV014',  N'sv_trang',      @DefaultPasswordHash, N'Mai Thùy Trang',       N'trang.sv@uth.edu.vn', N'0903000014', N'Student',  N'Active', 0),
-(N'SV015',  N'sv_tuan',       @DefaultPasswordHash, N'Phan Anh Tuấn',        N'tuan.sv@uth.edu.vn',  N'0903000015', N'Student',  N'Active', 0),
-(N'SV016',  N'sv_uyen',       @DefaultPasswordHash, N'Lương Phương Uyên',    N'uyen.sv@uth.edu.vn',  N'0903000016', N'Student',  N'Active', 0),
-(N'SV017',  N'sv_viet',       @DefaultPasswordHash, N'Nguyễn Quốc Việt',     N'viet.sv@uth.edu.vn',  N'0903000017', N'Student',  N'Active', 0),
-(N'SV018',  N'sv_xuan',       @DefaultPasswordHash, N'Tạ Thanh Xuân',        N'xuan.sv@uth.edu.vn',  N'0903000018', N'Student',  N'Active', 0),
-(N'SV019',  N'sv_yen',        @DefaultPasswordHash, N'Đoàn Hải Yến',         N'yen.sv@uth.edu.vn',   N'0903000019', N'Student',  N'Active', 0),
-(N'SV020',  N'sv_loc',        @DefaultPasswordHash, N'Cao Vĩnh Lộc',         N'loc.sv@uth.edu.vn',   N'0903000020', N'Student',  N'Active', 0);
+(N'SV001',  N'sv_an',         @DefaultPasswordHash, N'Nguyen Van An',        N'an.sv@uth.edu.vn',    N'0903000001', N'Student',  N'Active', 0),
+(N'SV002',  N'sv_binh',       @DefaultPasswordHash, N'Tran Hai Binh',        N'binh.sv@uth.edu.vn',  N'0903000002', N'Student',  N'Active', 0),
+(N'SV003',  N'sv_chau',       @DefaultPasswordHash, N'Le Minh Chau',         N'chau.sv@uth.edu.vn',  N'0903000003', N'Student',  N'Active', 0),
+(N'SV004',  N'sv_dung',       @DefaultPasswordHash, N'Pham Hoang Dung',      N'dung.sv@uth.edu.vn',  N'0903000004', N'Student',  N'Active', 0),
+(N'SV005',  N'sv_giang',      @DefaultPasswordHash, N'Vu Huong Giang',       N'giang.sv@uth.edu.vn', N'0903000005', N'Student',  N'Active', 0),
+(N'SV006',  N'sv_ha',         @DefaultPasswordHash, N'Dang Thu Ha',          N'ha.sv@uth.edu.vn',    N'0903000006', N'Student',  N'Active', 0),
+(N'SV007',  N'sv_khoa',       @DefaultPasswordHash, N'Bui Dang Khoa',        N'khoa.sv@uth.edu.vn',  N'0903000007', N'Student',  N'Active', 0),
+(N'SV008',  N'sv_linh',       @DefaultPasswordHash, N'Hoang My Linh',        N'linh.sv@uth.edu.vn',  N'0903000008', N'Student',  N'Active', 0),
+(N'SV009',  N'sv_minh',       @DefaultPasswordHash, N'Ngo Quang Minh',       N'minh.sv@uth.edu.vn',  N'0903000009', N'Student',  N'Active', 0),
+(N'SV010',  N'sv_nga',        @DefaultPasswordHash, N'Duong Thuy Nga',       N'nga.sv@uth.edu.vn',   N'0903000010', N'Student',  N'Active', 0),
+(N'SV011',  N'sv_phong',      @DefaultPasswordHash, N'Trinh Quoc Phong',     N'phong.sv@uth.edu.vn', N'0903000011', N'Student',  N'Active', 0),
+(N'SV012',  N'sv_quan',       @DefaultPasswordHash, N'Do Hong Quan',         N'quan.sv@uth.edu.vn',  N'0903000012', N'Student',  N'Active', 0),
+(N'SV013',  N'sv_son',        @DefaultPasswordHash, N'Ly Thai Son',          N'son.sv@uth.edu.vn',   N'0903000013', N'Student',  N'Active', 0),
+(N'SV014',  N'sv_trang',      @DefaultPasswordHash, N'Mai Thuy Trang',       N'trang.sv@uth.edu.vn', N'0903000014', N'Student',  N'Active', 0),
+(N'SV015',  N'sv_tuan',       @DefaultPasswordHash, N'Phan Anh Tuan',        N'tuan.sv@uth.edu.vn',  N'0903000015', N'Student',  N'Active', 0),
+(N'SV016',  N'sv_uyen',       @DefaultPasswordHash, N'Luong Phuong Uyen',    N'uyen.sv@uth.edu.vn',  N'0903000016', N'Student',  N'Active', 0),
+(N'SV017',  N'sv_viet',       @DefaultPasswordHash, N'Nguyen Quoc Viet',     N'viet.sv@uth.edu.vn',  N'0903000017', N'Student',  N'Active', 0),
+(N'SV018',  N'sv_xuan',       @DefaultPasswordHash, N'Ta Thanh Xuan',        N'xuan.sv@uth.edu.vn',  N'0903000018', N'Student',  N'Active', 0),
+(N'SV019',  N'sv_yen',        @DefaultPasswordHash, N'Doan Hai Yen',         N'yen.sv@uth.edu.vn',   N'0903000019', N'Student',  N'Active', 0),
+(N'SV020',  N'sv_loc',        @DefaultPasswordHash, N'Cao Vinh Loc',         N'loc.sv@uth.edu.vn',   N'0903000020', N'Student',  N'Active', 0),
+
+-- Additional Lecturers (Id: 31, 32)
+(N'GV009',  N'gv_minh',       @DefaultPasswordHash, N'Dr. Nguyen Van Minh',  N'minh.nv@uth.edu.vn',  N'0902000009', N'Lecturer', N'Active', 0),
+(N'GV010',  N'gv_hoa',        @DefaultPasswordHash, N'MSc. Tran Thi Hoa',    N'hoa.tt@uth.edu.vn',   N'0902000010', N'Lecturer', N'Active', 0),
+
+-- Additional Students (Id: 33 to 37, including sv_nam)
+(N'SV021',  N'sv_nam',        @DefaultPasswordHash, N'Nguyen Hoang Nam',     N'nam.sv@uth.edu.vn',   N'0903000021', N'Student',  N'Active', 0),
+(N'SV022',  N'sv_anh',        @DefaultPasswordHash, N'Tran Mai Anh',         N'anh.sv@uth.edu.vn',   N'0903000022', N'Student',  N'Active', 0),
+(N'SV023',  N'sv_hai',        @DefaultPasswordHash, N'Le Quang Hai',         N'hai.sv@uth.edu.vn',   N'0903000023', N'Student',  N'Active', 0),
+(N'SV024',  N'sv_thao',       @DefaultPasswordHash, N'Mai Phuong Thao',      N'thao.sv@uth.edu.vn',  N'0903000024', N'Student',  N'Active', 0),
+(N'SV025',  N'sv_kien',       @DefaultPasswordHash, N'Dang Trung Kien',      N'kien.sv@uth.edu.vn',  N'0903000025', N'Student',  N'Active', 0);
 
 -- 4.2. Insert Sub-Entities (Admins, Lecturers, Students)
 INSERT INTO dbo.Admins (UserId, AdminCode, OfficeDepartment) VALUES 
@@ -634,7 +644,9 @@ INSERT INTO dbo.Lecturers (UserId, LecturerCode, Department, AcademicDegree) VAL
 (7,  N'GV005', N'Artificial Intelligence',        N'Doctorate'),
 (8,  N'GV006', N'Software Engineering',           N'Master'),
 (9,  N'GV007', N'Fundamental Informatics',        N'Doctorate'),
-(10, N'GV008', N'Management Information Systems', N'Master');
+(10, N'GV008', N'Management Information Systems', N'Master'),
+(31, N'GV009', N'Computer Science',               N'Doctorate'),
+(32, N'GV010', N'Information Systems',            N'Master');
 
 INSERT INTO dbo.Students (UserId, StudentCode, AdministrativeClass, Major, Faculty, EnrollmentYear) VALUES
 (11, N'SV001', N'HT2301', N'Management Information Systems', N'Faculty of Information Technology', 2023),
@@ -656,36 +668,41 @@ INSERT INTO dbo.Students (UserId, StudentCode, AdministrativeClass, Major, Facul
 (27, N'SV017', N'CN2301', N'Information Technology',         N'Faculty of Information Technology', 2023),
 (28, N'SV018', N'CN2302', N'Information Technology',         N'Faculty of Information Technology', 2023),
 (29, N'SV019', N'PM2301', N'Software Engineering',           N'Faculty of Information Technology', 2023),
-(30, N'SV020', N'KT2301', N'Computer Science',               N'Faculty of Information Technology', 2023);
+(30, N'SV020', N'KT2301', N'Computer Science',               N'Faculty of Information Technology', 2023),
+(33, N'SV021', N'CN2301', N'Information Technology',         N'Faculty of Information Technology', 2023),
+(34, N'SV022', N'HT2301', N'Management Information Systems', N'Faculty of Information Technology', 2023),
+(35, N'SV023', N'PM2301', N'Software Engineering',           N'Faculty of Information Technology', 2023),
+(36, N'SV024', N'CN2302', N'Information Technology',         N'Faculty of Information Technology', 2023),
+(37, N'SV025', N'KT2301', N'Computer Science',               N'Faculty of Information Technology', 2023);
 
 -- 4.3. Insert Semesters & Registration Periods
 INSERT INTO dbo.Semesters (SemesterCode, SemesterName, AcademicYear, StartDate, EndDate, CreditUnitPrice, IsCurrent)
 VALUES 
-(N'SEM2_2025_2026', N'Học kỳ 2 (2025 - 2026)', N'2025-2026', '2026-01-15', '2026-06-15', 520000.00, 0),
-(N'SEM1_2026_2027', N'Học kỳ 1 (2026 - 2027)', N'2026-2027', '2026-09-01', '2027-01-31', 550000.00, 1);
+(N'SEM2_2025_2026', N'Semester 2 (2025 - 2026)', N'2025-2026', '2026-01-15', '2026-06-15', 520000.00, 0),
+(N'SEM1_2026_2027', N'Semester 1 (2026 - 2027)', N'2026-2027', '2026-09-01', '2027-01-31', 550000.00, 1);
 
 INSERT INTO dbo.RegistrationPeriods (SemesterId, PeriodName, StartDate, EndDate, MinCredits, MaxCredits, IsActive)
 VALUES 
-(2, N'Đợt Đăng ký Học phần Chính thức - Học kỳ 1 (2026 - 2027)', '2026-09-01 00:00:00', '2027-01-31 23:59:59', 12, 25, 1);
+(2, N'Official Course Registration Period - Semester 1 (2026 - 2027)', '2026-09-01 00:00:00', '2027-01-31 23:59:59', 12, 25, 1);
 
 -- 4.4. Insert Courses Catalog
 INSERT INTO dbo.Courses (CourseCode, CourseName, Credits, TheoryHours, PracticeHours, Department, PrerequisiteCourseId)
 VALUES
-(N'IT101', N'Nhập môn Lập trình',                 3, 30, 15, N'Computer Science',               NULL),
-(N'IT102', N'Cấu trúc Dữ liệu & Giải thuật',       4, 45, 15, N'Computer Science',               1),
-(N'IT103', N'Lập trình Hướng đối tượng',          3, 30, 15, N'Computer Science',               1),
-(N'IS201', N'Cơ sở Dữ liệu',                       3, 30, 15, N'Information Systems',            NULL),
-(N'IS202', N'Hệ Quản trị Cơ sở Dữ liệu',          3, 30, 15, N'Information Systems',            4),
-(N'IS301', N'Phân tích & Thiết kế Hệ thống',       3, 30, 15, N'Information Systems',            4),
-(N'SE201', N'Nhập môn Kỹ thuật Phần mềm',          3, 30, 15, N'Software Engineering',           3),
-(N'SE301', N'Kiến trúc & Thiết kế Phần mềm',       3, 30, 15, N'Software Engineering',           7),
-(N'SE302', N'Kiểm thử & Đảm bảo Chất lượng PM',    3, 30, 15, N'Software Engineering',           7),
-(N'NW101', N'Mạng Máy tính Căn bản',              3, 30, 15, N'Computer Networks & Security',   NULL),
-(N'NW201', N'An toàn & Bảo mật Thông tin',        3, 30, 15, N'Computer Networks & Security',   10),
-(N'AI201', N'Nhập môn Trí tuệ Nhân tạo',           3, 30, 15, N'Artificial Intelligence',        2),
-(N'AI301', N'Học máy & Khai phá Dữ liệu',          4, 45, 15, N'Artificial Intelligence',        12),
-(N'MA101', N'Toán Rời rạc & Lý thuyết Đồ thị',    3, 30, 15, N'Fundamental Sciences',          NULL),
-(N'MA102', N'Xác suất Thống kê Ứng dụng',         3, 30, 15, N'Fundamental Sciences',          NULL);
+(N'IT101', N'Introduction to Programming',              3, 30, 15, N'Computer Science',               NULL),
+(N'IT102', N'Data Structures and Algorithms',           4, 45, 15, N'Computer Science',               1),
+(N'IT103', N'Object-Oriented Programming',              3, 30, 15, N'Computer Science',               1),
+(N'IS201', N'Database Systems',                         3, 30, 15, N'Information Systems',            NULL),
+(N'IS202', N'Advanced Database Systems',                3, 30, 15, N'Information Systems',            4),
+(N'IS301', N'Systems Analysis and Design',              3, 30, 15, N'Information Systems',            4),
+(N'SE201', N'Introduction to Software Engineering',     3, 30, 15, N'Software Engineering',           3),
+(N'SE301', N'Software Architecture and Design',         3, 30, 15, N'Software Engineering',           7),
+(N'SE302', N'Software Testing & Quality Assurance',     3, 30, 15, N'Software Engineering',           7),
+(N'NW101', N'Computer Networks Fundamentals',           3, 30, 15, N'Computer Networks & Security',   NULL),
+(N'NW201', N'Network Security and Cryptography',        3, 30, 15, N'Computer Networks & Security',   10),
+(N'AI201', N'Introduction to Artificial Intelligence',  3, 30, 15, N'Artificial Intelligence',        2),
+(N'AI301', N'Machine Learning and Data Mining',         4, 45, 15, N'Artificial Intelligence',        12),
+(N'MA101', N'Discrete Mathematics and Graph Theory',    3, 30, 15, N'Fundamental Sciences',          NULL),
+(N'MA102', N'Applied Probability and Statistics',       3, 30, 15, N'Fundamental Sciences',          NULL);
 
 -- Insert Course Prerequisites (Supports multi-prerequisite relationships)
 INSERT INTO dbo.CoursePrerequisites (CourseId, PrerequisiteCourseId, IsMandatory)
@@ -704,21 +721,21 @@ VALUES
 -- 4.5. Insert Classrooms & TimeSlots
 INSERT INTO dbo.Classrooms (RoomCode, Building, Capacity, RoomType)
 VALUES 
-(N'A101', N'Tòa nhà A', 50, N'Theory'),
-(N'A102', N'Tòa nhà A', 50, N'Theory'),
-(N'A201', N'Tòa nhà A', 60, N'Theory'),
-(N'B201', N'Tòa nhà B', 45, N'Theory'),
-(N'B202', N'Tòa nhà B', 45, N'Theory'),
-(N'B301', N'Tòa nhà B', 40, N'Theory'),
-(N'C101', N'Tòa nhà C', 35, N'Computer Lab'),
-(N'C102', N'Tòa nhà C', 35, N'Network Lab');
+(N'A101', N'Building A', 50, N'Theory'),
+(N'A102', N'Building A', 50, N'Theory'),
+(N'A201', N'Building A', 60, N'Theory'),
+(N'B201', N'Building B', 45, N'Theory'),
+(N'B202', N'Building B', 45, N'Theory'),
+(N'B301', N'Building B', 40, N'Theory'),
+(N'C101', N'Building C', 35, N'Computer Lab'),
+(N'C102', N'Building C', 35, N'Network Lab');
 
 INSERT INTO dbo.TimeSlots (SlotNumber, SlotName, StartTime, EndTime)
 VALUES
-(1, N'Ca 1 (07:00 - 09:30)', '07:00:00', '09:30:00'),
-(2, N'Ca 2 (09:45 - 12:15)', '09:45:00', '12:15:00'),
-(3, N'Ca 3 (13:00 - 15:30)', '13:00:00', '15:30:00'),
-(4, N'Ca 4 (15:45 - 18:15)', '15:45:00', '18:15:00');
+(1, N'Slot 1 (07:00 - 09:30)', '07:00:00', '09:30:00'),
+(2, N'Slot 2 (09:45 - 12:15)', '09:45:00', '12:15:00'),
+(3, N'Slot 3 (13:00 - 15:30)', '13:00:00', '15:30:00'),
+(4, N'Slot 4 (15:45 - 18:15)', '15:45:00', '18:15:00');
 
 -- 4.6. Insert Classes (CourseClass sections)
 INSERT INTO dbo.Classes (ClassCode, CourseId, SemesterId, LecturerId, ClassroomId, Room, TimeSlotId, DayOfWeek, MinCapacity, MaxCapacity, CurrentEnrollment, Status)
@@ -745,33 +762,62 @@ VALUES
 (N'AI201_01', 12, 2, 7,  3, N'A201', 1, 5, 15, 45, 0, 'Open'),
 (N'AI301_01', 13, 2, 7,  7, N'C101', 2, 2, 15, 35, 0, 'Open'),
 (N'MA101_01', 14, 2, 9,  1, N'A101', 4, 2, 15, 50, 0, 'Open'),
-(N'MA102_01', 15, 2, 9,  2, N'A102', 3, 6, 15, 50, 0, 'Open');
+(N'MA102_01', 15, 2, 9,  2, N'A102', 3, 6, 15, 50, 0, 'Open'),
+-- Các lớp đã hoàn thành ở học kỳ trước (SemesterId = 1) để lưu điểm tích lũy và thỏa mãn môn tiên quyết
+(N'IT101_PAST', 1, 1, 3, 1, N'A101', 1, 2, 15, 50, 20, 'Closed'),
+(N'IS201_PAST', 4, 1, 3, 1, N'A101', 2, 5, 15, 50, 20, 'Closed');
 
 -- 4.7. Seed Historical Completions (Học kỳ 2 2025-2026 - thỏa mãn điều kiện tiên quyết)
--- SV001 - SV020 (Id 11 - 30) đã hoàn thành môn IT101 và IS201 từ học kỳ trước
+-- Sinh viên (Id 11 - 37) đã hoàn thành môn IT101 và IS201 từ học kỳ trước (ClassId: 23 và 24)
 INSERT INTO dbo.Enrollments (StudentId, ClassId, EnrolledAt, Status, FinalGrade, IsPassed)
 VALUES
-(11, 1, '2026-01-20 08:00:00', 'Completed', 8.5, 1),
-(12, 1, '2026-01-20 08:00:00', 'Completed', 7.5, 1),
-(13, 1, '2026-01-20 08:00:00', 'Completed', 9.0, 1),
-(14, 1, '2026-01-20 08:00:00', 'Completed', 8.0, 1),
-(15, 1, '2026-01-20 08:00:00', 'Completed', 8.2, 1),
-(16, 1, '2026-01-20 08:00:00', 'Completed', 7.8, 1),
-(17, 1, '2026-01-20 08:00:00', 'Completed', 8.5, 1),
-(18, 1, '2026-01-20 08:00:00', 'Completed', 8.0, 1),
-(19, 1, '2026-01-20 08:00:00', 'Completed', 7.0, 1),
-(20, 1, '2026-01-20 08:00:00', 'Completed', 9.2, 1),
-(21, 1, '2026-01-20 08:00:00', 'Completed', 8.4, 1),
-(22, 1, '2026-01-20 08:00:00', 'Completed', 8.0, 1),
-(23, 1, '2026-01-20 08:00:00', 'Completed', 7.5, 1),
-(24, 1, '2026-01-20 08:00:00', 'Completed', 8.8, 1),
-(25, 1, '2026-01-20 08:00:00', 'Completed', 7.9, 1);
+(11, 23, '2026-01-20 08:00:00', 'Completed', 8.5, 1),
+(12, 23, '2026-01-20 08:00:00', 'Completed', 7.5, 1),
+(13, 23, '2026-01-20 08:00:00', 'Completed', 9.0, 1),
+(14, 23, '2026-01-20 08:00:00', 'Completed', 8.0, 1),
+(15, 23, '2026-01-20 08:00:00', 'Completed', 8.2, 1),
+(16, 23, '2026-01-20 08:00:00', 'Completed', 7.8, 1),
+(17, 23, '2026-01-20 08:00:00', 'Completed', 8.5, 1),
+(18, 23, '2026-01-20 08:00:00', 'Completed', 8.0, 1),
+(19, 23, '2026-01-20 08:00:00', 'Completed', 7.0, 1),
+(20, 23, '2026-01-20 08:00:00', 'Completed', 9.2, 1),
+(21, 23, '2026-01-20 08:00:00', 'Completed', 8.4, 1),
+(22, 23, '2026-01-20 08:00:00', 'Completed', 8.0, 1),
+(23, 23, '2026-01-20 08:00:00', 'Completed', 7.5, 1),
+(24, 23, '2026-01-20 08:00:00', 'Completed', 8.8, 1),
+(25, 23, '2026-01-20 08:00:00', 'Completed', 7.9, 1),
+(33, 23, '2026-01-20 08:00:00', 'Completed', 8.5, 1),
+(34, 23, '2026-01-20 08:00:00', 'Completed', 8.0, 1),
+(35, 23, '2026-01-20 08:00:00', 'Completed', 7.5, 1),
+(36, 23, '2026-01-20 08:00:00', 'Completed', 8.2, 1),
+(37, 23, '2026-01-20 08:00:00', 'Completed', 8.7, 1),
+(11, 24, '2026-01-20 08:00:00', 'Completed', 8.0, 1),
+(12, 24, '2026-01-20 08:00:00', 'Completed', 8.5, 1),
+(33, 24, '2026-01-20 08:00:00', 'Completed', 8.5, 1);
 
 -- 4.8. Seed Active Registrations for Current Semester (SemesterId = 2)
 -- Đăng ký một số lớp học phần mẫu cho sinh viên
 INSERT INTO dbo.Enrollments (StudentId, ClassId, EnrolledAt, Status, FinalGrade, IsPassed)
 VALUES
--- Class 3 (IT102_01): 16 sinh viên (>= 15 SV: Đạt chuẩn)
+-- Class 1 (IT101_01 - GV: TS. Lê Hoàng Nam gv_nam): 16 sinh viên
+(11, 1, '2026-09-02 08:00:00', 'Enrolled', NULL, 0),
+(12, 1, '2026-09-02 08:05:00', 'Enrolled', NULL, 0),
+(13, 1, '2026-09-02 08:10:00', 'Enrolled', NULL, 0),
+(14, 1, '2026-09-02 08:15:00', 'Enrolled', NULL, 0),
+(15, 1, '2026-09-02 08:20:00', 'Enrolled', NULL, 0),
+(16, 1, '2026-09-02 08:25:00', 'Enrolled', NULL, 0),
+(17, 1, '2026-09-02 08:30:00', 'Enrolled', NULL, 0),
+(18, 1, '2026-09-02 08:35:00', 'Enrolled', NULL, 0),
+(19, 1, '2026-09-02 08:40:00', 'Enrolled', NULL, 0),
+(20, 1, '2026-09-02 08:45:00', 'Enrolled', NULL, 0),
+(21, 1, '2026-09-02 08:50:00', 'Enrolled', NULL, 0),
+(22, 1, '2026-09-02 08:55:00', 'Enrolled', NULL, 0),
+(23, 1, '2026-09-02 09:00:00', 'Enrolled', NULL, 0),
+(24, 1, '2026-09-02 09:05:00', 'Enrolled', NULL, 0),
+(25, 1, '2026-09-02 09:10:00', 'Enrolled', NULL, 0),
+(33, 1, '2026-09-02 09:15:00', 'Enrolled', NULL, 0),
+
+-- Class 3 (IT102_01): 17 sinh viên (>= 15 SV: Đạt chuẩn)
 (11, 3, '2026-09-02 08:15:00', 'Enrolled', NULL, 0),
 (12, 3, '2026-09-02 08:20:00', 'Enrolled', NULL, 0),
 (13, 3, '2026-09-02 08:25:00', 'Enrolled', NULL, 0),
@@ -788,8 +834,9 @@ VALUES
 (24, 3, '2026-09-02 09:20:00', 'Enrolled', NULL, 0),
 (25, 3, '2026-09-02 09:25:00', 'Enrolled', NULL, 0),
 (26, 3, '2026-09-02 09:30:00', 'Enrolled', NULL, 0),
+(33, 3, '2026-09-02 09:35:00', 'Enrolled', NULL, 0),
 
--- Class 5 (IT103_01): 15 sinh viên (>= 15 SV: Đạt chuẩn)
+-- Class 5 (IT103_01): 16 sinh viên (>= 15 SV: Đạt chuẩn)
 (11, 5, '2026-09-02 09:35:00', 'Enrolled', NULL, 0),
 (12, 5, '2026-09-02 09:40:00', 'Enrolled', NULL, 0),
 (13, 5, '2026-09-02 09:45:00', 'Enrolled', NULL, 0),
@@ -805,8 +852,9 @@ VALUES
 (23, 5, '2026-09-02 10:35:00', 'Enrolled', NULL, 0),
 (24, 5, '2026-09-02 10:40:00', 'Enrolled', NULL, 0),
 (25, 5, '2026-09-02 10:45:00', 'Enrolled', NULL, 0),
+(33, 5, '2026-09-02 10:50:00', 'Enrolled', NULL, 0),
 
--- Class 7 (IS201_01): 18 sinh viên (>= 15 SV: Đạt chuẩn)
+-- Class 7 (IS201_01 - GV: TS. Lê Hoàng Nam gv_nam): 19 sinh viên (>= 15 SV: Đạt chuẩn)
 (11, 7, '2026-09-02 10:50:00', 'Enrolled', NULL, 0),
 (12, 7, '2026-09-02 10:55:00', 'Enrolled', NULL, 0),
 (13, 7, '2026-09-02 11:00:00', 'Enrolled', NULL, 0),
@@ -825,8 +873,9 @@ VALUES
 (26, 7, '2026-09-02 12:05:00', 'Enrolled', NULL, 0),
 (27, 7, '2026-09-02 12:10:00', 'Enrolled', NULL, 0),
 (28, 7, '2026-09-02 12:15:00', 'Enrolled', NULL, 0),
+(33, 7, '2026-09-02 12:20:00', 'Enrolled', NULL, 0),
 
--- Class 10 (IS301_01): 16 sinh viên (>= 15 SV: Đạt chuẩn)
+-- Class 10 (IS301_01 - GV: TS. Lê Hoàng Nam gv_nam): 17 sinh viên (>= 15 SV: Đạt chuẩn)
 (11, 10, '2026-09-02 13:00:00', 'Enrolled', NULL, 0),
 (12, 10, '2026-09-02 13:05:00', 'Enrolled', NULL, 0),
 (13, 10, '2026-09-02 13:10:00', 'Enrolled', NULL, 0),
@@ -843,13 +892,15 @@ VALUES
 (24, 10, '2026-09-02 14:05:00', 'Enrolled', NULL, 0),
 (25, 10, '2026-09-02 14:10:00', 'Enrolled', NULL, 0),
 (26, 10, '2026-09-02 14:15:00', 'Enrolled', NULL, 0),
+(33, 10, '2026-09-02 14:20:00', 'Enrolled', NULL, 0),
 
--- Class 21 (MA101_01): 5 sinh viên (< 15 SV: Dành cho Admin thử nghiệm tính năng Hủy lớp ít sinh viên)
+-- Class 21 (MA101_01): 6 sinh viên (< 15 SV: Dành cho Admin thử nghiệm tính năng Hủy lớp ít sinh viên)
 (11, 21, '2026-09-02 14:30:00', 'Enrolled', NULL, 0),
 (12, 21, '2026-09-02 14:35:00', 'Enrolled', NULL, 0),
 (13, 21, '2026-09-02 14:40:00', 'Enrolled', NULL, 0),
 (14, 21, '2026-09-02 14:45:00', 'Enrolled', NULL, 0),
 (15, 21, '2026-09-02 14:50:00', 'Enrolled', NULL, 0),
+(33, 21, '2026-09-02 14:55:00', 'Enrolled', NULL, 0),
 
 -- Class 22 (MA102_01): 4 sinh viên (< 15 SV)
 (16, 22, '2026-09-02 15:00:00', 'Enrolled', NULL, 0),
@@ -868,15 +919,32 @@ FROM dbo.Classes c;
 
 -- 4.9. Ghi nhận Nhật ký Đăng ký mẫu (RegistrationHistory)
 INSERT INTO dbo.RegistrationHistory (StudentId, ClassId, ActionType, ActionTime, PerformedByUserId, Note)
-SELECT StudentId, ClassId, 'Register', EnrolledAt, StudentId, N'Đăng ký trực tuyến thành công'
+SELECT StudentId, ClassId, 'Register', EnrolledAt, StudentId, N'Online course registration successful'
 FROM dbo.Enrollments
 WHERE Status = 'Enrolled';
 
--- 4.10. Tự động tính toán Bảng kê Học phí (Tuitions) cho sinh viên
-DECLARE @CurrentStudentId INT = 11;
-WHILE @CurrentStudentId <= 30
+-- 4.10. Tự động tính toán Bảng kê Học phí (Tuitions) cho toàn bộ sinh viên
+DECLARE @StuId INT;
+DECLARE cur_Tuition CURSOR LOCAL FAST_FORWARD FOR SELECT UserId FROM dbo.Students;
+OPEN cur_Tuition;
+FETCH NEXT FROM cur_Tuition INTO @StuId;
+WHILE @@FETCH_STATUS = 0
 BEGIN
-    EXEC dbo.sp_RecalculateStudentTuition @StudentId = @CurrentStudentId, @SemesterId = 2;
-    SET @CurrentStudentId = @CurrentStudentId + 1;
+    EXEC dbo.sp_RecalculateStudentTuition @StudentId = @StuId, @SemesterId = 2;
+    FETCH NEXT FROM cur_Tuition INTO @StuId;
 END;
+CLOSE cur_Tuition;
+DEALLOCATE cur_Tuition;
+GO
+
+-- 4.11. TÍCH HỢP TỪ fix_accounts_password.sql: Đảm bảo toàn bộ tài khoản ở trạng thái Active và mật khẩu 123456
+DECLARE @FinalHash NVARCHAR(255) = N'scrypt:32768:8:1$E6TmpjVgQDqaUiav$d79ab1a034cfa9fb797e97766269d438b521dd7718a4288eff2611315e524e6a6e4eb8a31d0777a975cb595cacd42b13b9b3a74bdb755bcbeb18c1eb4f2fcf23';
+
+UPDATE dbo.Users
+SET PasswordHash = @FinalHash,
+    Status = 'Active',
+    FailedLoginCount = 0;
+
+PRINT N'>> [SUCCESS] Database CourseRegistrationDB initialized successfully!';
+PRINT N'>> [ACCOUNTS] All accounts active with default password 123456!';
 GO

@@ -26,6 +26,6 @@ async function apiPost(url, data) {
         return await response.json();
     } catch (error) {
         console.error('API Error:', error);
-        showToast('Lỗi kết nối đến máy chủ!', 'danger');
+        showToast('Server connection error!', 'danger');
     }
 }

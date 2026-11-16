@@ -72,7 +72,7 @@ async function lecGet(path) {
     return await res.json();
   } catch (err) {
     console.error('API Error:', err);
-    if (typeof showToast === 'function') showToast('Lỗi kết nối đến máy chủ!', 'danger');
+    if (typeof showToast === 'function') showToast('Server connection error!', 'danger');
     return null;
   }
 }
@@ -98,7 +98,7 @@ function lecPaginate(key, items, containerId, renderRows) {
   }
   box.innerHTML = `
     <div class="pagination-bar">
-      <div class="pagination-info">Hiển thị <strong>${from}-${to}</strong> / <strong>${items.length}</strong></div>
+      <div class="pagination-info">Showing <strong>${from}-${to}</strong> of <strong>${items.length}</strong> entries</div>
       <div class="pagination-controls">
         <select class="page-size-select">${sizeOpts}</select>
         <button type="button" class="page-btn" data-page="${p.page - 1}" ${p.page === 1 ? 'disabled' : ''}>&lsaquo;</button>
@@ -200,7 +200,7 @@ function renderAssignedClasses() {
         <td>${lecEscape(c.CourseCode)}</td>
         <td>${lecEscape(c.CourseName)}</td>
         <td>${lecEscape(c.Credits)}</td>
-        <td>${lecEscape(c.DayName)} &bull; ${lecEscape(c.TimeRange)}</td>
+        <td>${lecEscape(c.DayName)} - ${lecEscape(c.TimeRange)}</td>
         <td>${lecEscape(c.Room)}</td>
         <td>${lecEscape(c.EnrolledCount)} / ${lecEscape(c.MaxCapacity)}</td>
         <td>${lecStatusBadge(c.ClassStatus)}</td>
@@ -283,7 +283,7 @@ function renderScheduleSummary() {
         <td>${lecEscape(c.CourseName)}</td>
         <td>${lecEscape(c.Credits)}</td>
         <td>${lecEscape(semText)}</td>
-        <td>${lecEscape(c.DayName)} &bull; ${lecEscape(c.TimeRange)}</td>
+        <td>${lecEscape(c.DayName)} - ${lecEscape(c.TimeRange)}</td>
         <td>${lecEscape(c.Room)}</td>
         <td>${lecEscape(c.EnrolledCount)} / ${lecEscape(c.MaxCapacity)}</td>
         <td><a class="btn btn-primary btn-sm" href="lecturer-students.html?class_id=${c.Id}&semester_id=${c.SemesterId}">View Roster</a></td>
@@ -303,7 +303,7 @@ async function loadWeeklyGrid() {
   if (loading) loading.classList.add('hidden');
   if (!res || !res.success) {
     if (board) board.innerHTML = '';
-    if (emptyNote) { emptyNote.textContent = (res && res.message) || 'Không tải được lịch giảng dạy.'; emptyNote.classList.remove('hidden'); }
+    if (emptyNote) { emptyNote.textContent = (res && res.message) || 'Failed to load teaching schedule.'; emptyNote.classList.remove('hidden'); }
     return;
   }
 
@@ -329,7 +329,7 @@ async function loadWeeklyGrid() {
       const found = data.sessions.filter((s) => s.DayOfWeek === d.day && s.TimeSlotId === slot.Id);
       const cards = found.map((s) => `
         <div class="tt-card ${idx % 2 ? 'indigo' : ''}">
-          <strong>${lecEscape(s.CourseCode)} &bull; ${lecEscape(s.ClassCode)}</strong>
+          <strong>${lecEscape(s.CourseCode)} - ${lecEscape(s.ClassCode)}</strong>
           <span>${lecEscape(s.CourseName)}</span>
           <span>Room: ${lecEscape(s.Room)}</span>
           <span>${lecEscape(s.EnrolledCount)} / ${lecEscape(s.MaxCapacity)} students</span>
@@ -455,7 +455,7 @@ async function exportStudentCSV() {
     lecBanner('export-toast', `Đã xuất file ${filename}`, 'success');
   } catch (err) {
     console.error(err);
-    lecBanner('export-toast', 'Lỗi kết nối đến máy chủ!', 'danger');
+    lecBanner('export-toast', 'Server connection error!', 'danger');
   }
 }
 
@@ -497,14 +497,14 @@ async function handleLecturerPassword(event) {
     });
     const data = await res.json();
     if (data.success) {
-      lecBanner('pw-toast', data.message || 'Đổi mật khẩu thành công.', 'success');
+      lecBanner('pw-toast', data.message || 'Password changed successfully.', 'success');
       event.target.reset();
     } else {
-      lecBanner('pw-toast', data.message || 'Đổi mật khẩu thất bại.', 'danger');
+      lecBanner('pw-toast', data.message || 'Failed to change password.', 'danger');
     }
   } catch (err) {
     console.error(err);
-    lecBanner('pw-toast', 'Lỗi kết nối đến máy chủ!', 'danger');
+    lecBanner('pw-toast', 'Server connection error!', 'danger');
   }
 }
 

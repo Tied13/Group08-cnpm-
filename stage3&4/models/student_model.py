@@ -46,8 +46,8 @@ DAY_NAMES = {
 }
 
 DAY_NAMES_VI = {
-    2: 'Thứ Hai', 3: 'Thứ Ba', 4: 'Thứ Tư', 5: 'Thứ Năm',
-    6: 'Thứ Sáu', 7: 'Thứ Bảy', 8: 'Chủ Nhật',
+    2: 'Monday', 3: 'Tuesday', 4: 'Wednesday', 5: 'Thursday',
+    6: 'Friday', 7: 'Saturday', 8: 'Sunday',
 }
 
 
@@ -262,27 +262,27 @@ class StudentProfileModel:
             (student_id,),
         )
         if not row:
-            raise StudentNotFoundError("Không tìm thấy thông tin sinh viên.", 404)
+            raise StudentNotFoundError("Student profile not found.", 404)
         return row
 
     @staticmethod
     def change_password(student_id, current_password, new_password, confirm_password):
         """Đổi mật khẩu sinh viên."""
         if not current_password or not new_password or not confirm_password:
-            raise StudentValidationError("Vui lòng điền đầy đủ thông tin mật khẩu.")
+            raise StudentValidationError("Please enter all required password fields.")
         if len(new_password) < MIN_PASSWORD_LENGTH:
-            raise StudentValidationError(f"Mật khẩu mới phải có ít nhất {MIN_PASSWORD_LENGTH} ký tự.")
+            raise StudentValidationError(f"New password must be at least {MIN_PASSWORD_LENGTH} characters.")
         if new_password != confirm_password:
-            raise StudentValidationError("Mật khẩu xác nhận không khớp.")
+            raise StudentValidationError("Password confirmation does not match.")
         if new_password == current_password:
-            raise StudentValidationError("Mật khẩu mới phải khác mật khẩu hiện tại.")
+            raise StudentValidationError("New password must be different from current password.")
 
         user = Database.query_one(
             "/* q:student_check_password */ SELECT Id, PasswordHash FROM dbo.Users WHERE Id = ?",
             (student_id,),
         )
         if not user:
-            raise StudentNotFoundError("Tài khoản sinh viên không tồn tại.", 404)
+            raise StudentNotFoundError("Student account does not exist.", 404)
 
         stored = user['PasswordHash']
         # Hỗ trợ cả werkzeug hash (scrypt/pbkdf2) và SHA256 fallback
@@ -294,7 +294,7 @@ class StudentProfileModel:
             valid = (stored == hashlib.sha256(current_password.encode()).hexdigest())
 
         if not valid:
-            raise StudentValidationError("Mật khẩu hiện tại không chính xác.")
+            raise StudentValidationError("Current password is incorrect.")
 
         new_hash = generate_password_hash(new_password)
         Database.execute(
@@ -542,7 +542,7 @@ class StudentCourseModel:
             (class_id,),
         )
         if not row:
-            raise StudentNotFoundError("Không tìm thấy thông tin lớp học phần.", 404)
+            raise StudentNotFoundError("Class section not found.", 404)
 
         row['DayName'] = DAY_NAMES.get(row['DayOfWeek'], '')
         row['DayNameVi'] = DAY_NAMES_VI.get(row['DayOfWeek'], '')
@@ -567,19 +567,6 @@ class StudentCourseModel:
 class StudentRegistrationModel:
     @staticmethod
     def register_course(student_id, class_id):
-        """
-        Thuật toán Đăng ký môn học với 4 điều kiện nghiêm ngặt thực hiện trong Transaction:
-        1. Lớp còn chỗ trống (CurrentEnrollment < MaxCapacity).
-        2. Môn tiên quyết đã được hoàn thành (Status = 'Completed', IsPassed = 1).
-        3. Lớp đăng ký không trùng ngày học và ca học với bất kỳ lớp nào đã đăng ký trong kỳ.
-        4. Tổng tín chỉ sau khi đăng ký không vượt quá 25 tín chỉ (và theo dõi đạt tối thiểu 12 tín chỉ).
-
-        Hành động khi thành công:
-          - Tăng CurrentEnrollment lên 1. Nếu đầy thì chuyển Status = 'Closed'.
-          - Cập nhật/Thêm bản ghi Enrollments sang Status = 'Enrolled'.
-          - Ghi log vào RegistrationHistory.
-          - Tự động tính toán lại bảng học phí Tuitions.
-        """
         with Database.get_cursor() as cursor:
             # Bước 1: Khóa dòng và lấy thông tin lớp học phần
             cls = _fetch_one(
@@ -596,7 +583,7 @@ class StudentRegistrationModel:
                 (class_id,),
             )
             if not cls:
-                raise StudentNotFoundError("Không tìm thấy lớp học phần để đăng ký.", 404)
+                raise StudentNotFoundError("Class section to register not found.", 404)
 
             semester_id = cls['SemesterId']
             course_id = cls['CourseId']
@@ -609,7 +596,7 @@ class StudentRegistrationModel:
 
             # Kiểm tra trạng thái lớp
             if cls['ClassStatus'] == 'Cancelled':
-                raise StudentValidationError("Lớp học phần này đã bị hủy bỏ bởi Nhà trường.")
+                raise StudentValidationError("This class section has been cancelled by the University.")
 
             # Bước 2: Kiểm tra thời gian mở đợt đăng ký môn học
             period = _fetch_one(
@@ -623,13 +610,13 @@ class StudentRegistrationModel:
                 (semester_id,),
             )
             if not period:
-                raise StudentValidationError("Hiện tại không có đợt đăng ký môn học nào đang mở cho học kỳ này.")
+                raise StudentValidationError("There is currently no active registration period for this semester.")
 
             now = datetime.now()
             start = period['StartDate'] if isinstance(period['StartDate'], datetime) else datetime.fromisoformat(str(period['StartDate'])[:19])
             end = period['EndDate'] if isinstance(period['EndDate'], datetime) else datetime.fromisoformat(str(period['EndDate'])[:19])
             if now < start or now > end:
-                raise StudentValidationError(f"Cổng đăng ký môn học hiện đang đóng (Thời gian mở: {_fmt_datetime(start)} đến {_fmt_datetime(end)}).")
+                raise StudentValidationError(f"Registration period is closed (Open time: {_fmt_datetime(start)} to {_fmt_datetime(end)}).")
 
             max_allowed_credits = int(period['MaxCredits']) if period.get('MaxCredits') else DEFAULT_MAX_CREDITS
             min_allowed_credits = int(period['MinCredits']) if period.get('MinCredits') else DEFAULT_MIN_CREDITS
@@ -652,16 +639,16 @@ class StudentRegistrationModel:
             )
             if dup:
                 if dup['Id'] == class_id:
-                    raise StudentConflictError("Bạn đã đăng ký lớp học phần này rồi.")
+                    raise StudentConflictError("You have already registered for this class section.")
                 else:
-                    raise StudentConflictError(f"Bạn đã đăng ký một lớp khác ({dup['ClassCode']}) của môn học này trong cùng học kỳ.")
+                    raise StudentConflictError(f"You have already registered for another section ({dup['ClassCode']}) of this course in this semester.")
 
             # ==============================================================
             # ĐIỀU KIỆN 1: Lớp còn chỗ trống (CurrentEnrollment < MaxCapacity)
             # ==============================================================
             if current_enrollment >= max_capacity or cls['ClassStatus'] == 'Closed':
                 raise StudentConflictError(
-                    f"Đăng ký thất bại: Lớp học phần {cls['ClassCode']} đã hết chỗ trống "
+                    f"Registration failed: Section {cls['ClassCode']} is full "
                     f"({current_enrollment}/{max_capacity})."
                 )
 
@@ -691,7 +678,7 @@ class StudentRegistrationModel:
                     )
                     prereq_name = f"{p_info['CourseCode']} - {p_info['CourseName']}" if p_info else str(prereq_course_id)
                     raise StudentValidationError(
-                        f"Đăng ký thất bại: Bạn chưa hoàn thành môn học tiên quyết bắt buộc ({prereq_name})."
+                        f"Registration failed: You have not completed the required prerequisite course ({prereq_name})."
                     )
 
             # Kiểm tra thêm bảng CoursePrerequisites nếu có nhiều môn tiên quyết
@@ -724,7 +711,7 @@ class StudentRegistrationModel:
                 )
                 if not passed_mp:
                     raise StudentValidationError(
-                        f"Đăng ký thất bại: Bạn chưa hoàn thành môn học tiên quyết ({mp['CourseCode']} - {mp['CourseName']})."
+                        f"Registration failed: You have not completed the required prerequisite course ({mp['CourseCode']} - {mp['CourseName']})."
                     )
 
             # ==============================================================
@@ -749,10 +736,10 @@ class StudentRegistrationModel:
                 (student_id, semester_id, day_of_week, time_slot_id),
             )
             if conflict:
-                day_name = DAY_NAMES_VI.get(day_of_week, f"Thứ {day_of_week}")
+                day_name = DAY_NAMES.get(day_of_week, f"Day {day_of_week}")
                 raise StudentConflictError(
-                    f"Đăng ký thất bại: Trùng lịch học với lớp {conflict['ClassCode']} ({conflict['CourseName']}) "
-                    f"vào {day_name}, {conflict['SlotName']}."
+                    f"Registration failed: Schedule conflict with class {conflict['ClassCode']} ({conflict['CourseName']}) "
+                    f"on {day_name}, {conflict['SlotName']}."
                 )
 
             # ==============================================================
@@ -778,8 +765,8 @@ class StudentRegistrationModel:
 
             if new_total_credits > max_allowed_credits:
                 raise StudentValidationError(
-                    f"Đăng ký thất bại: Tổng số tín chỉ sau khi đăng ký ({new_total_credits} tín chỉ) "
-                    f"vượt quá giới hạn tối đa cho phép ({max_allowed_credits} tín chỉ)."
+                    f"Registration failed: Total registered credits ({new_total_credits} credits) "
+                    f"exceeds the maximum allowed limit ({max_allowed_credits} credits)."
                 )
 
             # ==============================================================
@@ -847,11 +834,11 @@ class StudentRegistrationModel:
             is_min_credits_met = (new_total_credits >= min_allowed_credits)
             notice = ""
             if not is_min_credits_met:
-                notice = f" (Lưu ý: Hiện có {new_total_credits} tín chỉ, cần đạt tối thiểu {min_allowed_credits} tín chỉ trước khi kết thúc đợt)."
+                notice = f" (Note: Currently enrolled in {new_total_credits} credits, minimum {min_allowed_credits} credits required before registration deadline)."
 
             return {
                 'success': True,
-                'message': f"Đăng ký thành công lớp học phần {cls['ClassCode']} ({cls['CourseName']})!{notice}",
+                'message': f"Successfully registered for class {cls['ClassCode']} ({cls['CourseName']})!{notice}",
                 'data': {
                     'class_id': class_id,
                     'class_code': cls['ClassCode'],
@@ -892,7 +879,7 @@ class StudentRegistrationModel:
                 (class_id,),
             )
             if not cls:
-                raise StudentNotFoundError("Không tìm thấy thông tin lớp học phần.", 404)
+                raise StudentNotFoundError("Class section not found.", 404)
 
             semester_id = cls['SemesterId']
             course_credits = int(cls['Credits'])
@@ -909,13 +896,13 @@ class StudentRegistrationModel:
                 (semester_id,),
             )
             if not period:
-                raise StudentValidationError("Đợt đăng ký/hủy môn học hiện đang đóng.")
+                raise StudentValidationError("Course registration/drop period is currently closed.")
 
             now = datetime.now()
             start = period['StartDate'] if isinstance(period['StartDate'], datetime) else datetime.fromisoformat(str(period['StartDate'])[:19])
             end = period['EndDate'] if isinstance(period['EndDate'], datetime) else datetime.fromisoformat(str(period['EndDate'])[:19])
             if now < start or now > end:
-                raise StudentValidationError(f"Thời gian hủy môn học đã hết hạn (Đóng lúc: {_fmt_datetime(end)}).")
+                raise StudentValidationError(f"Course drop deadline has expired (Closed at: {_fmt_datetime(end)}).")
 
             min_required_credits = int(period['MinCredits']) if period.get('MinCredits') else DEFAULT_MIN_CREDITS
 
@@ -930,7 +917,7 @@ class StudentRegistrationModel:
                 (student_id, class_id),
             )
             if not enrollment:
-                raise StudentNotFoundError("Không tìm thấy dữ liệu đăng ký hợp lệ hoặc môn học đã được hủy trước đó.", 404)
+                raise StudentNotFoundError("No valid enrollment record found or course was previously dropped.", 404)
 
             # Bước 4: Cập nhật bản ghi Enrollments sang Cancelled
             _execute(
@@ -992,11 +979,11 @@ class StudentRegistrationModel:
 
             warning = ""
             if remaining_credits < min_required_credits:
-                warning = f" (Cảnh báo: Tổng tín chỉ còn lại {remaining_credits} tín chỉ, dưới mức tối thiểu {min_required_credits} tín chỉ theo quy định đợt đăng ký)."
+                warning = f" (Warning: Remaining credits {remaining_credits} is below the minimum required {min_required_credits} credits for this registration period)."
 
             return {
                 'success': True,
-                'message': f"Đã hủy đăng ký lớp học phần {cls['ClassCode']} ({cls['CourseName']}) thành công!{warning}",
+                'message': f"Successfully dropped class {cls['ClassCode']} ({cls['CourseName']})!{warning}",
                 'data': {
                     'class_id': class_id,
                     'class_code': cls['ClassCode'],
@@ -1028,7 +1015,7 @@ class StudentScheduleModel:
         try:
             week = int(week)
         except (TypeError, ValueError):
-            raise StudentValidationError("Số tuần không hợp lệ.")
+            raise StudentValidationError("Invalid week number.")
         week = min(max(week, 1), total_weeks)
 
         week_start = first_monday + timedelta(days=7 * (week - 1))
@@ -1044,15 +1031,9 @@ class StudentScheduleModel:
 
     @staticmethod
     def build_weekly_schedule(student_id, semester_id, week=None, today=None):
-        """
-        Dựng thời khóa biểu cá nhân của sinh viên theo dạng lưới tuần:
-          - Trục ngang: Các ngày trong tuần (Thứ 2 đến Thứ 7/Chủ Nhật kèm ngày cụ thể).
-          - Trục dọc: Các ca học (Slot 1..N).
-          - Tế bào (Cell): Thông tin lớp học phần (Mã môn, Tên môn, Lớp, Phòng, Giảng viên).
-        """
         semester = StudentLookupModel.get_semester_by_id(semester_id)
         if not semester:
-            raise StudentNotFoundError("Không tìm thấy học kỳ.", 404)
+            raise StudentNotFoundError("Semester not found.", 404)
 
         info = StudentScheduleModel.week_info(semester, week, today)
         enrolled_classes = StudentCourseModel.get_registered_classes(student_id, semester_id)
@@ -1184,7 +1165,7 @@ class StudentTuitionModel:
 
         semester = StudentLookupModel.get_semester_by_id(semester_id)
         if not semester:
-            raise StudentNotFoundError("Không tìm thấy học kỳ.", 404)
+            raise StudentNotFoundError("Semester not found.", 404)
 
         unit_price = Decimal(str(semester.get('CreditUnitPrice') or DEFAULT_CREDIT_PRICE))
 

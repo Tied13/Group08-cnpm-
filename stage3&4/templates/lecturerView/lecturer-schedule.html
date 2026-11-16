@@ -6,7 +6,6 @@
     <title>View Teaching Schedule - Lecturer Portal</title>
  <link rel="stylesheet" href="/static/css/lecturer.css" />
   </head>
-  </head>
   <body>
     <div class="portal-layout">
       <!-- Sidebar -->
@@ -35,7 +34,7 @@
       <main class="main-content">
         <header class="top-bar">
           <div class="campus-hero-strip">
-            <span>Academic Year 2026 – 2027 • Faculty of Information Systems</span>
+            <span>Academic Year 2026 - 2027 - Faculty of Information Systems</span>
             <h2>Lecturer Teaching Schedule & Class Management</h2>
           </div>
 
@@ -49,9 +48,9 @@
 
           <!-- Bộ điều hướng tuần: Chuyển tuần trước / tuần sau -->
           <div class="week-navigator">
-            <button type="button" class="btn-nav-week" onclick="prevWeek()" title="Previous Week">&larr; Prev</button>
+            <button type="button" class="btn-nav-week" onclick="prevWeek()" title="Previous Week">Prev</button>
             <span class="week-label" id="current-week-display">Week 1 (Loading...)</span>
-            <button type="button" class="btn-nav-week" onclick="nextWeek()" title="Next Week">Next &rarr;</button>
+            <button type="button" class="btn-nav-week" onclick="nextWeek()" title="Next Week">Next</button>
           </div>
 
           <div class="top-user-area">
@@ -123,7 +122,7 @@
                   </tr>
                 </thead>
                 <tbody id="summary-tbody">
-                  <!-- Làm trống nội dung sẵn sàng nạp động từ MC / API -->
+                  <!-- Dynamic content loaded from API -->
                 </tbody>
               </table>
               <div id="summary-pagination"></div>
@@ -142,7 +141,7 @@
 
             <div class="table-wrap">
               <div class="timetable-board" id="lecturer-timetable-board">
-                <!-- Nội dung đã làm trống để nạp động theo tuần từ API thực tế -->
+                <!-- Dynamic content loaded from API -->
               </div>
               <div id="timetable-loading" class="tt-empty-notice hidden">
                 Loading teaching schedule from API...

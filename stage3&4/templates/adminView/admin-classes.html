@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Create & Cancel Classes - Admin Console</title>
     <link rel="stylesheet" href="/static/css/admin.css" />
-    />
   </head>
   <body>
     <div class="portal-layout">
@@ -43,7 +42,7 @@
         <header class="top-bar">
           <div class="campus-hero-strip">
             <span
-              >Academic Year 2026 – 2027 • Class Section Scheduling & Lecturer
+              >Academic Year 2026 - 2027 - Class Section Scheduling & Lecturer
               Assignment</span
             >
             <h2>
@@ -99,13 +98,13 @@
                 <label for="sec-course">Select Base Course</label>
                 <select id="sec-course" required>
                   <option value="IT201">
-                    IT201 — Database Management Systems (3 Cr)
+                    IT201 - Database Management Systems (3 Cr)
                   </option>
                   <option value="IT305">
-                    IT305 — System Analysis and Design (3 Cr)
+                    IT305 - System Analysis and Design (3 Cr)
                   </option>
                   <option value="IT408">
-                    IT408 — Data Warehouse & BI (3 Cr)
+                    IT408 - Data Warehouse & BI (3 Cr)
                   </option>
                 </select>
               </div>
@@ -199,7 +198,7 @@
 
             <div style="display: flex; justify-content: flex-end">
               <button type="submit" class="btn btn-primary">
-                + Create Class Section & Assign Lecturer
+                Create Class Section & Assign Lecturer
               </button>
             </div>
           </form>
@@ -223,14 +222,14 @@
                   <th>Base Course</th>
                   <th>Assigned Lecturer</th>
                   <th>Schedule & Room</th>
-                  <th>registered/ Capacity</th>
+                  <th>Registered / Capacity</th>
                   <th>Min Requirement</th>
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody id="admin-classes-tbody">
-                <!-- Làm trống nội dung sẵn sàng nạp động từ MC / API -->
+                <!-- Dynamic rows loaded via API -->
               </tbody>
             </table>
             <div id="classes-pagination"></div>
@@ -255,7 +254,7 @@
       <div class="modal-box danger-top">
         <h3 style="color: var(--danger)">Confirm Class Section Cancellation</h3>
         <p style="color: var(--text-secondary); font-size: 0.9rem">
-          This class section has fewer registeredstudents than the minimum
+          This class section has fewer registered students than the minimum
           requirement (15). Are you sure you want to cancel:
         </p>
         <div
@@ -271,7 +270,7 @@
         <p style="font-size: 0.82rem; color: var(--text-muted)">
           Confirming will update the section status to
           <strong>"Cancelled"</strong> and automatically remove the class from
-          the active schedules of registeredstudents and the assigned lecturer.
+          the active schedules of registered students and the assigned lecturer.
         </p>
         <div class="modal-actions">
           <button class="btn btn-soft" onclick="closeCancelSectionModal()">

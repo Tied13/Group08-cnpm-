@@ -55,8 +55,8 @@ def ensure_student_role():
         return None
     if request.path.startswith('/student/api/'):
         if 'user_id' not in session:
-            return jsonify({'success': False, 'message': 'Vui lòng đăng nhập để tiếp tục.'}), 401
-        return jsonify({'success': False, 'message': 'Bạn không có quyền truy cập chức năng Sinh viên.'}), 403
+            return jsonify({'success': False, 'message': 'Please log in to continue.'}), 401
+        return jsonify({'success': False, 'message': 'You do not have permission to access Student Portal.'}), 403
     return redirect('/login')
 
 
@@ -100,7 +100,7 @@ def api_endpoint(func):
             return api_error(exc.message, exc.status_code)
         except Exception as exc:
             current_app.logger.exception('Student API error: %s', exc)
-            return api_error(f'Lỗi hệ thống: {exc}', 500)
+            return api_error(f'System error: {exc}', 500)
     return wrapper
 
 
@@ -115,7 +115,7 @@ def _semester_id_arg():
         return sem_id
     curr = StudentLookupModel.get_current_semester()
     if not curr:
-        raise StudentValidationError("Chưa có học kỳ nào được kích hoạt trong hệ thống.")
+        raise StudentValidationError("No active semester found in the system.")
     return curr['Id']
 
 
@@ -233,26 +233,16 @@ def api_class_detail(class_id):
 @student_bp.route('/api/register', methods=['POST'])
 @api_endpoint
 def api_register_course():
-    """
-    Thuật toán Đăng ký môn học:
-      1. Lớp còn chỗ trống (CurrentEnrollment < MaxCapacity).
-      2. Môn tiên quyết đã được hoàn thành (kiểm tra lịch sử học tập).
-      3. Lớp đăng ký không trùng ngày học và ca học với bất kỳ lớp nào đã đăng ký trong kỳ.
-      4. Tổng tín chỉ sau khi đăng ký không vượt quá 25 tín chỉ (và đạt tối thiểu 12 tín chỉ khi kết thúc đợt).
-      - Tăng CurrentEnrollment lên 1 khi đăng ký thành công.
-      - Ghi log RegistrationHistory.
-      - Tự động cập nhật Tuitions.
-    """
     student_id = _student_id()
     data = _payload()
     class_id = data.get('class_id')
     if not class_id:
-        raise StudentValidationError("Vui lòng chọn lớp học phần cần đăng ký.")
+        raise StudentValidationError("Please select a class section to register.")
 
     try:
         class_id = int(class_id)
     except (ValueError, TypeError):
-        raise StudentValidationError("Mã lớp học phần (class_id) không hợp lệ.")
+        raise StudentValidationError("Invalid class ID.")
 
     result = StudentRegistrationModel.register_course(student_id, class_id)
     return api_success(data=result.get('data'), message=result.get('message'), status=201)
@@ -262,24 +252,16 @@ def api_register_course():
 @student_bp.route('/api/drop', methods=['POST'])
 @api_endpoint
 def api_drop_course():
-    """
-    Hủy đăng ký môn học:
-      - Cho phép sinh viên hủy môn trong thời gian mở cổng đăng ký.
-      - Giảm CurrentEnrollment của lớp đi 1.
-      - Cập nhật bản ghi ghi danh sang Cancelled.
-      - Ghi log RegistrationHistory.
-      - Tự động cập nhật lại Tuitions.
-    """
     student_id = _student_id()
     data = _payload()
     class_id = data.get('class_id')
     if not class_id:
-        raise StudentValidationError("Vui lòng chọn lớp học phần cần hủy.")
+        raise StudentValidationError("Please select a class section to drop.")
 
     try:
         class_id = int(class_id)
     except (ValueError, TypeError):
-        raise StudentValidationError("Mã lớp học phần không hợp lệ.")
+        raise StudentValidationError("Invalid class ID.")
 
     result = StudentRegistrationModel.drop_course(student_id, class_id)
     return api_success(data=result.get('data'), message=result.get('message'))
@@ -339,4 +321,4 @@ def api_change_password():
     confirm_password = data.get('confirm_password', '')
 
     StudentProfileModel.change_password(student_id, current_password, new_password, confirm_password)
-    return api_success(message="Đổi mật khẩu thành công! Vui lòng ghi nhớ mật khẩu mới.")
+    return api_success(message="Password changed successfully! Please remember your new password.")

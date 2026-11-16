@@ -70,7 +70,7 @@ async function adminApi(path, options = {}) {
   try {
     response = await fetch(`${ADMIN_API}${path}`, init);
   } catch (err) {
-    throw new Error('Không thể kết nối đến máy chủ. Vui lòng thử lại.');
+    throw new Error('Could not connect to server. Please try again.');
   }
 
   let json = null;
@@ -82,10 +82,10 @@ async function adminApi(path, options = {}) {
 
   if (response.status === 401) {
     window.location.href = '/login';
-    throw new Error((json && json.message) || 'Phiên đăng nhập đã hết hạn.');
+    throw new Error((json && json.message) || 'Session has expired. Please log in again.');
   }
   if (!response.ok || !json || json.success === false) {
-    throw new Error((json && json.message) || `Yêu cầu thất bại (HTTP ${response.status}).`);
+    throw new Error((json && json.message) || `Request failed (HTTP ${response.status}).`);
   }
   return { data: json.data, message: json.message };
 }
@@ -192,14 +192,14 @@ function renderPagination(containerId, key, totalItems, rerender) {
 
   container.innerHTML = `
     <div class="pagination-bar">
-      <div class="pagination-info">Showing <strong>${from}–${to}</strong> of <strong>${totalItems}</strong></div>
+      <div class="pagination-info">Showing <strong>${from}-${to}</strong> of <strong>${totalItems}</strong></div>
       <div class="pagination-controls">
         <select class="page-size-select" data-role="size">
           ${[5, 10, 20, 50].map((n) => `<option value="${n}" ${n === state.size ? 'selected' : ''}>${n} / page</option>`).join('')}
         </select>
         <button class="page-btn" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''}>&lsaquo;</button>
         ${pages.map((p) => (p === '...'
-          ? '<span class="page-dots">…</span>'
+          ? '<span class="page-dots">...</span>'
           : `<button class="page-btn ${p === state.page ? 'active' : ''}" data-page="${p}">${p}</button>`)).join('')}
         <button class="page-btn" data-page="${state.page + 1}" ${state.page >= totalPages ? 'disabled' : ''}>&rsaquo;</button>
       </div>
@@ -229,7 +229,7 @@ async function loadSemesterOptions(selectId) {
   }
   const previous = select.value;
   select.innerHTML = adminState.semesters
-    .map((s) => `<option value="${s.Id}">${escapeHtml(s.SemesterName)}${s.IsCurrent ? ' • Current' : ''}</option>`)
+    .map((s) => `<option value="${s.Id}">${escapeHtml(s.SemesterName)}${s.IsCurrent ? ' - Current' : ''}</option>`)
     .join('');
   const keep = adminState.semesters.find((s) => String(s.Id) === previous);
   const current = adminState.semesters.find((s) => s.IsCurrent) || adminState.semesters[0];
@@ -342,8 +342,8 @@ async function handleCreateUser(event) {
 async function toggleUserStatus(userId) {
   const user = adminState.users.find((u) => u.Id === userId);
   if (!user) return;
-  const action = user.Status === 'Locked' ? 'MỞ KHÓA' : 'KHÓA';
-  if (!window.confirm(`Bạn có chắc muốn ${action} tài khoản ${user.UserCode} - ${user.FullName}?`)) return;
+  const action = user.Status === 'Locked' ? 'unlock' : 'lock';
+  if (!window.confirm(`Are you sure you want to ${action} account ${user.UserCode} - ${user.FullName}?`)) return;
   try {
     const { message } = await adminApi(`/users/${userId}/toggle-status`, { method: 'POST' });
     showAdminToast('user-toast', message, 'success');
@@ -396,7 +396,7 @@ async function saveEditedUser(event) {
    3. TRANG QUAN LY MON HOC (admin-courses.html)
    ========================================================================== */
 function courseLabel(course) {
-  return `${course.CourseCode} — ${course.CourseName}`;
+  return `${course.CourseCode} - ${course.CourseName}`;
 }
 
 function buildPrereqOptions(excludeId, selectedId) {
@@ -434,7 +434,7 @@ function renderCoursesTable() {
       <td><strong>${escapeHtml(c.CourseCode)}</strong></td>
       <td>${escapeHtml(c.CourseName)}</td>
       <td>${escapeHtml(c.Credits)}</td>
-      <td>${c.PrerequisiteCode ? escapeHtml(`${c.PrerequisiteCode} — ${c.PrerequisiteName}`) : '<span style="color: var(--text-muted)">None</span>'}</td>
+      <td>${c.PrerequisiteCode ? escapeHtml(`${c.PrerequisiteCode} - ${c.PrerequisiteName}`) : '<span style="color: var(--text-muted)">None</span>'}</td>
       <td>${escapeHtml(c.ActiveSections)}</td>
       <td>${escapeHtml(c.RegisteredStudents)}</td>
       <td>
@@ -546,7 +546,7 @@ async function saveEditedCourse(event) {
 async function deleteCourse(courseId) {
   const course = adminState.courses.find((c) => c.Id === courseId);
   if (!course) return;
-  if (!window.confirm(`Xóa môn học ${courseLabel(course)}?`)) return;
+  if (!window.confirm(`Delete course ${courseLabel(course)}?`)) return;
   try {
     const { message } = await adminApi(`/courses/${courseId}`, { method: 'DELETE' });
     showAdminToast('course-toast', message, 'success');
@@ -564,8 +564,9 @@ async function handleManualOverride(event) {
     class_code: valueOf('override-section'),
     action: valueOf('override-action'),
   };
-  const verb = payload.action === 'ADD' ? 'THÊM' : 'XÓA';
-  if (!window.confirm(`${verb} sinh viên ${payload.student_code} ${payload.action === 'ADD' ? 'vào' : 'khỏi'} lớp ${payload.class_code}?`)) return;
+  const verb = payload.action === 'ADD' ? 'add' : 'remove';
+  const prep = payload.action === 'ADD' ? 'to' : 'from';
+  if (!window.confirm(`Are you sure you want to ${verb} student ${payload.student_code} ${prep} class ${payload.class_code}?`)) return;
   try {
     const { message } = await adminApi('/enrollments/override', { method: 'POST', body: payload });
     showAdminToast('course-toast', message, 'success');
@@ -609,7 +610,7 @@ async function initClassesPage() {
     const courseSelect = $id('sec-course');
     if (courseSelect) {
       courseSelect.innerHTML = adminState.courses
-        .map((c) => `<option value="${c.Id}">${escapeHtml(`${c.CourseCode} — ${c.CourseName} (${c.Credits} Cr)`)}</option>`)
+        .map((c) => `<option value="${c.Id}">${escapeHtml(`${c.CourseCode} - ${c.CourseName} (${c.Credits} Cr)`)}</option>`)
         .join('');
     }
     const slotSelect = $id('sec-slot');
@@ -658,9 +659,9 @@ function renderClassesTable() {
     return `
       <tr>
         <td><strong>${escapeHtml(c.ClassCode)}</strong></td>
-        <td>${escapeHtml(`${c.CourseCode} — ${c.CourseName}`)}</td>
+        <td>${escapeHtml(`${c.CourseCode} - ${c.CourseName}`)}</td>
         <td>${escapeHtml(lecturer)}</td>
-        <td>${escapeHtml(c.DayName || DAY_LABELS[c.DayOfWeek] || '')} • ${escapeHtml(c.SlotName)}<br>
+        <td>${escapeHtml(c.DayName || DAY_LABELS[c.DayOfWeek] || '')} - ${escapeHtml(c.SlotName)}<br>
             <small style="color: var(--text-muted)">Room ${escapeHtml(c.Room)}</small></td>
         <td>${current} / ${max}
             <div class="capacity-bar-wrap"><div class="capacity-bar-fill ${fillClass}" style="width: ${percent}%"></div></div></td>
@@ -721,7 +722,7 @@ function openCancelSectionModal(classId) {
   adminState.pendingCancelClass = target;
   const label = $id('cancel-sec-target');
   if (label) {
-    label.textContent = `${target.ClassCode} — ${target.CourseName} (${target.CurrentEnrollment}/${target.MaxCapacity} students registered)`;
+    label.textContent = `${target.ClassCode} - ${target.CourseName} (${target.CurrentEnrollment}/${target.MaxCapacity} students registered)`;
   }
   modal.classList.remove('hidden');
 }
@@ -816,7 +817,7 @@ async function handleSavePeriod(event) {
   const start = valueOf('start-dt');
   const end = valueOf('end-dt');
   if (start && end && new Date(end) <= new Date(start)) {
-    showAdminToast('period-toast', 'Ngày kết thúc phải sau ngày bắt đầu.', 'warning');
+    showAdminToast('period-toast', 'End date must be after start date.', 'warning');
     return;
   }
   const payload = {
@@ -834,8 +835,8 @@ async function handleSavePeriod(event) {
 }
 
 async function togglePeriodActive(periodId, makeActive) {
-  const verb = makeActive ? 'MỞ LẠI' : 'ĐÓNG';
-  if (!window.confirm(`Bạn có chắc muốn ${verb} đợt đăng ký này?`)) return;
+  const verb = makeActive ? 'reopen' : 'close';
+  if (!window.confirm(`Are you sure you want to ${verb} this registration period?`)) return;
   try {
     const { message } = await adminApi(`/periods/${periodId}/active`, {
       method: 'POST',
@@ -952,7 +953,7 @@ function renderStudentReport() {
       <td>${escapeHtml(s.CourseCount)}</td>
       <td><strong>${escapeHtml(s.TotalCredits)}</strong></td>
       <td>${statusBadge(s.Compliance)}
-          <small style="color: var(--text-muted)">(${escapeHtml(s.MinCredits)}–${escapeHtml(s.MaxCredits)})</small></td>
+          <small style="color: var(--text-muted)">(${escapeHtml(s.MinCredits)}-${escapeHtml(s.MaxCredits)})</small></td>
     </tr>`).join('');
 
   toggleNoReportData(all.length === 0);

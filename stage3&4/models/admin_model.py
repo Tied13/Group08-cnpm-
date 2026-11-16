@@ -126,10 +126,10 @@ def _clean(value):
 def _require_text(value, label, max_len=None):
     value = _clean(value)
     if value is None:
-        raise AdminValidationError(f'{label} không được để trống.')
+        raise AdminValidationError(f'{label} cannot be empty.')
     value = str(value)
     if max_len and len(value) > max_len:
-        raise AdminValidationError(f'{label} không được vượt quá {max_len} ký tự.')
+        raise AdminValidationError(f'{label} cannot exceed {max_len} characters.')
     return value
 
 
@@ -139,7 +139,7 @@ def _optional_text(value, label, max_len=None):
         return None
     value = str(value)
     if max_len and len(value) > max_len:
-        raise AdminValidationError(f'{label} không được vượt quá {max_len} ký tự.')
+        raise AdminValidationError(f'{label} cannot exceed {max_len} characters.')
     return value
 
 
@@ -148,19 +148,19 @@ def _to_int(value, label, min_value=None, max_value=None, allow_none=False):
     if value is None or (isinstance(value, str) and value.lower() in ('none', 'null')):
         if allow_none:
             return None
-        raise AdminValidationError(f'{label} không được để trống.')
+        raise AdminValidationError(f'{label} cannot be empty.')
     if isinstance(value, bool):
-        raise AdminValidationError(f'{label} phải là số nguyên.')
+        raise AdminValidationError(f'{label} must be an integer.')
     try:
         if isinstance(value, float) and not value.is_integer():
             raise ValueError
         number = int(value)
     except (TypeError, ValueError):
-        raise AdminValidationError(f'{label} phải là số nguyên.')
+        raise AdminValidationError(f'{label} must be an integer.')
     if min_value is not None and number < min_value:
-        raise AdminValidationError(f'{label} phải lớn hơn hoặc bằng {min_value}.')
+        raise AdminValidationError(f'{label} must be greater than or equal to {min_value}.')
     if max_value is not None and number > max_value:
-        raise AdminValidationError(f'{label} phải nhỏ hơn hoặc bằng {max_value}.')
+        raise AdminValidationError(f'{label} must be less than or equal to {max_value}.')
     return number
 
 
@@ -168,7 +168,7 @@ def _parse_code(value, label, max_len):
     code = _require_text(value, label, max_len).upper()
     if not CODE_PATTERN.match(code):
         raise AdminValidationError(
-            f'{label} chỉ được chứa chữ, số và các ký tự "_", ".", "-" (không có khoảng trắng).'
+            f'{label} can only contain letters, numbers, and characters "_", ".", "-" (no spaces).'
         )
     return code
 
@@ -181,7 +181,7 @@ def _parse_datetime(value, label):
         # Ho tro dinh dang input datetime-local: 2026-11-13T09:30
         return datetime.fromisoformat(text.replace('Z', ''))
     except ValueError:
-        raise AdminValidationError(f'{label} không đúng định dạng ngày giờ (YYYY-MM-DDTHH:MM).')
+        raise AdminValidationError(f'{label} has invalid datetime format (YYYY-MM-DDTHH:MM).')
 
 
 def _parse_day_of_week(value):
@@ -237,13 +237,13 @@ class AdminUserModel:
         role = _clean(role)
         if role:
             if role not in MANAGEABLE_ROLES:
-                raise AdminValidationError('Vai trò lọc không hợp lệ.')
+                raise AdminValidationError('Invalid role filter.')
             sql += " AND u.Role = ?"
             params.append(role)
         status = _clean(status)
         if status:
             if status not in USER_STATUSES:
-                raise AdminValidationError('Trạng thái lọc không hợp lệ.')
+                raise AdminValidationError('Invalid status filter.')
             sql += " AND u.Status = ?"
             params.append(status)
         keyword = _clean(keyword)
@@ -275,7 +275,7 @@ class AdminUserModel:
             (user_id,),
         )
         if not user:
-            raise AdminNotFoundError('Không tìm thấy tài khoản.')
+            raise AdminNotFoundError('User account not found.')
         return user
 
     @staticmethod
@@ -285,16 +285,16 @@ class AdminUserModel:
         """Them moi tai khoan Sinh vien hoac Giang vien (mat khau duoc bam)."""
         role = _require_text(role, 'Vai trò')
         if role not in MANAGEABLE_ROLES:
-            raise AdminValidationError('Chỉ được tạo tài khoản Sinh viên (Student) hoặc Giảng viên (Lecturer).')
+            raise AdminValidationError('Only Student or Lecturer accounts can be created.')
         user_code = _parse_code(user_code, 'Mã SV/GV', 20)
         full_name = _require_text(full_name, 'Họ tên', 100)
         email = _require_text(email, 'Email', 100).lower()
         if not EMAIL_PATTERN.match(email):
-            raise AdminValidationError('Email không đúng định dạng.')
+            raise AdminValidationError('Invalid email format.')
         department = _require_text(department, 'Khoa / Chuyên ngành', 100)
         password = password if isinstance(password, str) else ''
         if len(password) < MIN_PASSWORD_LENGTH:
-            raise AdminValidationError(f'Mật khẩu phải có ít nhất {MIN_PASSWORD_LENGTH} ký tự.')
+            raise AdminValidationError(f'Password must be at least {MIN_PASSWORD_LENGTH} characters.')
         username = _optional_text(username, 'Tên đăng nhập', 50) or user_code
         phone = _optional_text(phone, 'Số điện thoại', 20)
         administrative_class = _optional_text(administrative_class, 'Lớp sinh hoạt', 30) or 'UNASSIGNED'
@@ -315,10 +315,10 @@ class AdminUserModel:
             )
             if duplicate:
                 if (duplicate.get('UserCode') or '').upper() == user_code:
-                    raise AdminConflictError(f"Mã người dùng '{user_code}' đã tồn tại.")
+                    raise AdminConflictError(f"User code '{user_code}' already exists.")
                 if (duplicate.get('Email') or '').lower() == email:
-                    raise AdminConflictError(f"Email '{email}' đã được sử dụng.")
-                raise AdminConflictError(f"Tên đăng nhập '{username}' đã tồn tại.")
+                    raise AdminConflictError(f"Email '{email}' is already in use.")
+                raise AdminConflictError(f"Username '{username}' already exists.")
 
             inserted = _fetch_one(
                 cursor,
@@ -360,7 +360,7 @@ class AdminUserModel:
         full_name = _require_text(full_name, 'Họ tên', 100)
         email = _require_text(email, 'Email', 100).lower()
         if not EMAIL_PATTERN.match(email):
-            raise AdminValidationError('Email không đúng định dạng.')
+            raise AdminValidationError('Invalid email format.')
         department = _require_text(department, 'Khoa / Chuyên ngành', 100)
         phone = _optional_text(phone, 'Số điện thoại', 20)
 
@@ -371,11 +371,11 @@ class AdminUserModel:
                 (user_id,),
             )
             if not user:
-                raise AdminNotFoundError('Không tìm thấy tài khoản.')
+                raise AdminNotFoundError('User account not found.')
             if user['Role'] not in MANAGEABLE_ROLES:
-                raise AdminValidationError('Không thể chỉnh sửa tài khoản Admin tại màn hình này.')
+                raise AdminValidationError('Admin accounts cannot be edited from this interface.')
             if _clean(role) and _clean(role) != user['Role']:
-                raise AdminValidationError('Không thể thay đổi vai trò của tài khoản đã tạo.')
+                raise AdminValidationError('Cannot change role of an existing account.')
 
             duplicate = _fetch_one(
                 cursor,
@@ -383,7 +383,7 @@ class AdminUserModel:
                 (email, user_id),
             )
             if duplicate:
-                raise AdminConflictError(f"Email '{email}' đã được sử dụng bởi tài khoản khác.")
+                raise AdminConflictError(f"Email '{email}' is already in use by another account.")
 
             _execute(
                 cursor,
@@ -409,7 +409,7 @@ class AdminUserModel:
         user_id = _to_int(user_id, 'Mã người dùng', 1)
         status = _require_text(status, 'Trạng thái')
         if status not in USER_STATUSES:
-            raise AdminValidationError("Trạng thái chỉ có thể là 'Active' hoặc 'Locked'.")
+            raise AdminValidationError("Status can only be 'Active' or 'Locked'.")
 
         with Database.get_cursor() as cursor:
             user = _fetch_one(
@@ -420,9 +420,9 @@ class AdminUserModel:
                 (user_id,),
             )
             if not user:
-                raise AdminNotFoundError('Không tìm thấy tài khoản.')
+                raise AdminNotFoundError('User account not found.')
             if user['Role'] not in MANAGEABLE_ROLES:
-                raise AdminValidationError('Không thể khóa / mở khóa tài khoản Admin.')
+                raise AdminValidationError('Admin accounts cannot be locked or unlocked.')
 
             if status == 'Active':
                 _execute(
@@ -485,7 +485,7 @@ class AdminCourseModel:
             (course_id,),
         )
         if not course:
-            raise AdminNotFoundError('Không tìm thấy môn học.')
+            raise AdminNotFoundError('Course not found.')
         return course
 
     @staticmethod
@@ -509,7 +509,7 @@ class AdminCourseModel:
             (prereq_id,),
         )
         if not prereq or not prereq.get('IsActive'):
-            raise AdminValidationError('Môn tiên quyết không tồn tại trong danh sách môn hiện có.')
+            raise AdminValidationError('Prerequisite course does not exist in available courses.')
         return prereq
 
     @staticmethod
@@ -541,7 +541,7 @@ class AdminCourseModel:
                 (data['code'],),
             )
             if duplicate:
-                raise AdminConflictError(f"Mã môn học '{data['code']}' đã tồn tại. Vui lòng chọn mã khác.")
+                raise AdminConflictError(f"Course code '{data['code']}' already exists. Please choose another code.")
 
             if data['prereq']:
                 AdminCourseModel._ensure_prerequisite_exists(cursor, data['prereq'])
@@ -580,7 +580,7 @@ class AdminCourseModel:
                 (course_id,),
             )
             if not current or not current.get('IsActive'):
-                raise AdminNotFoundError('Không tìm thấy môn học.')
+                raise AdminNotFoundError('Course not found.')
 
             duplicate = _fetch_one(
                 cursor,
@@ -588,18 +588,18 @@ class AdminCourseModel:
                 (data['code'], course_id),
             )
             if duplicate:
-                raise AdminConflictError(f"Mã môn học '{data['code']}' đã tồn tại. Vui lòng chọn mã khác.")
+                raise AdminConflictError(f"Course code '{data['code']}' already exists. Please choose another code.")
 
             if data['prereq']:
                 if data['prereq'] == course_id:
-                    raise AdminValidationError('Môn học không thể là môn tiên quyết của chính nó.')
+                    raise AdminValidationError('A course cannot be its own prerequisite.')
                 AdminCourseModel._ensure_prerequisite_exists(cursor, data['prereq'])
                 # Chong vong lap tien quyet: A -> B -> ... -> A
                 visited = set()
                 pointer = data['prereq']
                 while pointer and pointer not in visited:
                     if pointer == course_id:
-                        raise AdminValidationError('Không thể chọn môn tiên quyết này vì tạo thành vòng lặp tiên quyết.')
+                        raise AdminValidationError('Cannot select this prerequisite course as it would create a circular dependency.')
                     visited.add(pointer)
                     row = _fetch_one(
                         cursor,
@@ -643,7 +643,7 @@ class AdminCourseModel:
                 (course_id,),
             )
             if not course or not course.get('IsActive'):
-                raise AdminNotFoundError('Không tìm thấy môn học.')
+                raise AdminNotFoundError('Course not found.')
 
             usage = _fetch_one(
                 cursor,
@@ -659,11 +659,11 @@ class AdminCourseModel:
 
             if usage.get('OpenClasses', 0) > 0:
                 raise AdminConflictError(
-                    f"Không thể xóa môn {course['CourseCode']} vì đang có lớp học phần chưa bị hủy."
+                    f"Cannot delete course {course['CourseCode']} because there are active class sections."
                 )
             if usage.get('ActiveDependents', 0) > 0:
                 raise AdminConflictError(
-                    f"Không thể xóa môn {course['CourseCode']} vì đang là môn tiên quyết của môn khác."
+                    f"Cannot delete course {course['CourseCode']} because it is a prerequisite for another course."
                 )
 
             if usage.get('AllClasses', 0) > 0 or usage.get('AllDependents', 0) > 0 \
@@ -696,7 +696,7 @@ class AdminEnrollmentModel:
         class_code = _require_text(class_code, 'Mã lớp học phần', 30).upper()
         action = (_require_text(action, 'Hành động') or '').upper()
         if action not in OVERRIDE_ACTIONS:
-            raise AdminValidationError("Hành động chỉ có thể là 'ADD' hoặc 'REMOVE'.")
+            raise AdminValidationError("Action can only be 'ADD' or 'REMOVE'.")
 
         with Database.get_cursor() as cursor:
             student = _fetch_one(
@@ -709,7 +709,7 @@ class AdminEnrollmentModel:
                 (student_code, student_code),
             )
             if not student:
-                raise AdminNotFoundError(f"Không tìm thấy sinh viên '{student_code}'.")
+                raise AdminNotFoundError(f"Student '{student_code}' not found.")
 
             course_class = _fetch_one(
                 cursor,
@@ -720,7 +720,7 @@ class AdminEnrollmentModel:
                 (class_code,),
             )
             if not course_class:
-                raise AdminNotFoundError(f"Không tìm thấy lớp học phần '{class_code}'.")
+                raise AdminNotFoundError(f"Class section '{class_code}' not found.")
 
             enrollment = _fetch_one(
                 cursor,
@@ -732,11 +732,11 @@ class AdminEnrollmentModel:
 
             if action == 'ADD':
                 if course_class['Status'] == 'Cancelled':
-                    raise AdminConflictError('Lớp học phần đã bị hủy, không thể thêm sinh viên.')
+                    raise AdminConflictError('Class section has been cancelled, cannot add student.')
                 if enrollment and enrollment['Status'] == 'Enrolled':
-                    raise AdminConflictError('Sinh viên đã có trong lớp học phần này.')
+                    raise AdminConflictError('Student is already enrolled in this class section.')
                 if course_class['CurrentEnrollment'] >= course_class['MaxCapacity']:
-                    raise AdminConflictError('Lớp học phần đã đủ sĩ số tối đa.')
+                    raise AdminConflictError('Class section has reached maximum capacity.')
                 same_course = _fetch_one(
                     cursor,
                     """/* q:same_course_enrolled */
@@ -749,7 +749,7 @@ class AdminEnrollmentModel:
                 )
                 if same_course:
                     raise AdminConflictError(
-                        f"Sinh viên đã đăng ký môn này ở lớp {same_course['ClassCode']} trong cùng học kỳ."
+                        f"Student is already enrolled in this course in section {same_course['ClassCode']} for this semester."
                     )
 
                 if enrollment:
@@ -780,7 +780,7 @@ class AdminEnrollmentModel:
                 history_action, note = 'Register', N_ADD_NOTE
             else:
                 if not enrollment or enrollment['Status'] != 'Enrolled':
-                    raise AdminConflictError('Sinh viên hiện không có trong lớp học phần này.')
+                    raise AdminConflictError('Student is not currently enrolled in this class section.')
                 _execute(
                     cursor,
                     """/* q:cancel_single_enrollment */
@@ -869,9 +869,9 @@ class AdminClassModel:
                 (code, code, ref),
             )
         if not lecturer:
-            raise AdminValidationError('Không tìm thấy giảng viên được phân công.')
+            raise AdminValidationError('Assigned lecturer not found.')
         if lecturer.get('Status') != 'Active':
-            raise AdminValidationError(f"Giảng viên {lecturer['UserCode']} đang bị khóa, không thể phân công.")
+            raise AdminValidationError(f"Lecturer {lecturer['UserCode']} is locked and cannot be assigned.")
         return lecturer
 
     @staticmethod
@@ -888,28 +888,28 @@ class AdminClassModel:
         min_capacity = _to_int(min_capacity, 'Sĩ số tối thiểu', 1, MAX_CLASS_CAPACITY)
         max_capacity = _to_int(max_capacity, 'Sĩ số tối đa', 1, MAX_CLASS_CAPACITY)
         if max_capacity < min_capacity:
-            raise AdminValidationError(f'Sĩ số tối đa phải lớn hơn hoặc bằng sĩ số tối thiểu ({min_capacity}).')
+            raise AdminValidationError(f'Maximum capacity must be greater than or equal to minimum capacity ({min_capacity}).')
 
         with Database.get_cursor() as cursor:
             if _fetch_one(cursor,
                           "/* q:class_by_code */ SELECT Id FROM dbo.Classes WITH (UPDLOCK, HOLDLOCK) WHERE ClassCode = ?",
                           (class_code,)):
-                raise AdminConflictError(f"Mã lớp học phần '{class_code}' đã tồn tại.")
+                raise AdminConflictError(f"Class code '{class_code}' already exists.")
 
             course = _fetch_one(cursor,
                                 "/* q:course_by_id */ SELECT Id, CourseCode, IsActive FROM dbo.Courses WHERE Id = ?",
                                 (course_id,))
             if not course or not course.get('IsActive'):
-                raise AdminValidationError('Môn học cơ sở không tồn tại.')
+                raise AdminValidationError('Base course does not exist.')
 
             if not _fetch_one(cursor, "/* q:semester_by_id */ SELECT Id, SemesterName FROM dbo.Semesters WHERE Id = ?",
                               (semester_id,)):
-                raise AdminValidationError('Học kỳ không tồn tại.')
+                raise AdminValidationError('Semester does not exist.')
 
             slot = _fetch_one(cursor, "/* q:timeslot_by_id */ SELECT Id, SlotName FROM dbo.TimeSlots WHERE Id = ?",
                               (time_slot_id,))
             if not slot:
-                raise AdminValidationError('Ca học không tồn tại.')
+                raise AdminValidationError('Time slot does not exist.')
 
             lecturer = AdminClassModel._resolve_lecturer(cursor, lecturer_id, lecturer_ref)
 
@@ -921,7 +921,7 @@ class AdminClassModel:
             classroom_id = classroom['Id'] if classroom else None
             if classroom and max_capacity > classroom['Capacity']:
                 raise AdminValidationError(
-                    f"Sĩ số tối đa ({max_capacity}) vượt quá sức chứa phòng {room} ({classroom['Capacity']})."
+                    f"Maximum capacity ({max_capacity}) exceeds room {room} capacity ({classroom['Capacity']})."
                 )
 
             # --- Kiem tra TRUNG PHONG HOC (cung hoc ky, cung thu, cung ca) ---
@@ -936,7 +936,7 @@ class AdminClassModel:
             )
             if room_conflict:
                 raise AdminConflictError(
-                    f"Trùng phòng học: phòng {room} đã được xếp cho lớp {room_conflict['ClassCode']} "
+                    f"Room conflict: room {room} is already booked for class {room_conflict['ClassCode']} "
                     f"vào {DAY_NAMES[day_of_week]} - {slot['SlotName']}."
                 )
 
@@ -951,7 +951,7 @@ class AdminClassModel:
             )
             if lecturer_conflict:
                 raise AdminConflictError(
-                    f"Trùng lịch giảng viên: {lecturer['FullName']} đã dạy lớp {lecturer_conflict['ClassCode']} "
+                    f"Lecturer schedule conflict: {lecturer['FullName']} is already assigned to class {lecturer_conflict['ClassCode']} "
                     f"vào {DAY_NAMES[day_of_week]} - {slot['SlotName']}."
                 )
 
@@ -996,7 +996,7 @@ class AdminClassModel:
             if not course_class:
                 raise AdminNotFoundError('Không tìm thấy lớp học phần.')
             if course_class['Status'] == 'Cancelled':
-                raise AdminConflictError(f"Lớp {course_class['ClassCode']} đã bị hủy trước đó.")
+                raise AdminConflictError(f"Class {course_class['ClassCode']} was already cancelled.")
 
             enrolled_rows = _fetch_all(
                 cursor,
@@ -1010,8 +1010,8 @@ class AdminClassModel:
             enrollment_count = max(course_class.get('CurrentEnrollment') or 0, len(student_ids))
             if enrollment_count >= MIN_CLASS_ENROLLMENT:
                 raise AdminValidationError(
-                    f"Không thể hủy lớp {course_class['ClassCode']}: sĩ số hiện tại là {enrollment_count} "
-                    f"(chỉ được hủy lớp dưới {MIN_CLASS_ENROLLMENT} sinh viên)."
+                    f"Cannot cancel class {course_class['ClassCode']}: current enrollment is {enrollment_count} "
+                    f"(can only cancel classes with fewer than {MIN_CLASS_ENROLLMENT} students)."
                 )
 
             # Buoc 1: Huy lop
@@ -1119,13 +1119,13 @@ class AdminPeriodModel:
         start = _parse_datetime(start_date, 'Ngày bắt đầu')
         end = _parse_datetime(end_date, 'Ngày kết thúc')
         if end <= start:
-            raise AdminValidationError('Ngày kết thúc phải sau ngày bắt đầu.')
+            raise AdminValidationError('End date must be after start date.')
         min_credits = _to_int(min_credits if min_credits is not None else DEFAULT_MIN_CREDITS,
                               'Số tín chỉ tối thiểu', 0, 50)
         max_credits = _to_int(max_credits if max_credits is not None else DEFAULT_MAX_CREDITS,
                               'Số tín chỉ tối đa', 12, 50)
         if max_credits < min_credits:
-            raise AdminValidationError('Số tín chỉ tối đa phải lớn hơn hoặc bằng số tín chỉ tối thiểu.')
+            raise AdminValidationError('Maximum credits must be greater than or equal to minimum credits.')
         period_name = _optional_text(period_name, 'Tên đợt đăng ký', 150)
 
         with Database.get_cursor() as cursor:
@@ -1135,7 +1135,7 @@ class AdminPeriodModel:
                 (semester_id,),
             )
             if not semester:
-                raise AdminNotFoundError('Học kỳ không tồn tại.')
+                raise AdminNotFoundError('Semester does not exist.')
             period_name = period_name or f"Course Registration Period - {semester['SemesterName']}"
 
             _execute(
@@ -1173,7 +1173,7 @@ class AdminPeriodModel:
                 (period_id,),
             )
             if not period:
-                raise AdminNotFoundError('Không tìm thấy đợt đăng ký.')
+                raise AdminNotFoundError('Registration period not found.')
             if is_active:
                 _execute(
                     cursor,
