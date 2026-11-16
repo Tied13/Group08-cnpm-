@@ -580,7 +580,7 @@ GO
    Default password for all initial accounts: 123456
    ========================================================================== */
 
-DECLARE @DefaultPasswordHash NVARCHAR(255) = N'scrypt:32768:8:1';
+DECLARE @DefaultPasswordHash NVARCHAR(255) = N'scrypt:32768:8:1$E6TmpjVgQDqaUiav$d79ab1a034cfa9fb797e97766269d438b521dd7718a4288eff2611315e524e6a6e4eb8a31d0777a975cb595cacd42b13b9b3a74bdb755bcbeb18c1eb4f2fcf23';
 
 -- 4.1. Insert System Users (Admins, Lecturers, Students)
 INSERT INTO dbo.Users (UserCode, Username, PasswordHash, FullName, Email, Phone, Role, Status, FailedLoginCount)
