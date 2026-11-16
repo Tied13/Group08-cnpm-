@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tuition Fee - Student Portal</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+  <body>
+    <div class="portal-layout">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="logo-mark">UTH</div>
+          <div>
+            <h2>Student Portal</h2>
+            <span>Course Registration</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="courses.html" class="nav-link">Search & Register Courses</a>
+          <a href="timetable.html" class="nav-link">Personal Timetable</a>
+          <a href="tuition.html" class="nav-link active">Tuition Fee</a>
+          <a href="history.html" class="nav-link">Registration History</a>
+          <a href="profile.html" class="nav-link">Manage Profile</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <a href="login.html" class="btn btn-danger-soft btn-block">Log Out</a>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="top-bar">
+          <div class="campus-hero-strip">
+            <span>Academic Year 2026 – 2027</span>
+            <h2>Student Course Registration Portal</h2>
+          </div>
+          <div class="semester-picker">
+            <label for="sem-fee">Semester</label>
+            <select id="sem-fee" onchange="loadTuitionData()">
+              <option value="2026-1">Semester 1 (2026 - 2027)</option>
+              <option value="2025-2">Semester 2 (2025 - 2026)</option>
+            </select>
+          </div>
+
+          <div class="user-profile-chip">
+            <strong>Alex Nguyen</strong>
+            <span>ID: SV2026001</span>
+          </div>
+        </header>
+
+        <div class="page-header">
+          <div>
+            <h1>Semester Tuition Fee Statement</h1>
+            <p>
+              Calculated tuition fee based on your total registered credits for
+              the selected semester.
+            </p>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-tile">
+            <span>Registered Courses</span>
+            <strong id="stat-total-courses">0 Courses</strong>
+          </div>
+          <div class="stat-tile">
+            <span>Total Registered Credits</span>
+            <strong id="stat-total-credits">0 Credits</strong>
+          </div>
+          <div class="stat-tile">
+            <span>Tuition Rate / Credit</span>
+            <strong id="stat-rate">$45.00 USD</strong>
+          </div>
+          <div class="stat-tile primary-tile">
+            <span>Total Tuition Fee</span>
+            <strong id="stat-total-fee">$0.00 USD</strong>
+          </div>
+        </div>
+
+        <section class="surface-card">
+          <div class="surface-header">
+            <h3>Itemized Course Tuition Breakdown</h3>
+            <span class="badge badge-primary" id="billing-status"
+              >Billing Status: Calculated</span
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table class="clean-table" id="tuition-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Course Code</th>
+                  <th>Course Name</th>
+                  <th>Class Section</th>
+                  <th>Credits</th>
+                  <th>Fee Per Credit</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody id="tuition-tbody">
+                <!-- Nội dung đã làm trống để kết nối MC / API -->
+              </tbody>
+            </table>
+            <div id="tuition-pagination"></div>
+            <p
+              id="tuition-empty"
+              class="hidden"
+              style="
+                text-align: center;
+                padding: 24px;
+                color: var(--text-muted);
+              "
+            >
+              No enrolled courses or tuition records found for this semester.
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/js/student.js"></script>
+    <script src="/static/js/main.js"></script>
+  </body>
+</html>

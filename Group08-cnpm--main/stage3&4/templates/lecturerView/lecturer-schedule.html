@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>View Teaching Schedule - Lecturer Portal</title>
+ <link rel="stylesheet" href="/static/css/lecturer.css" />
+  </head>
+  </head>
+  <body>
+    <div class="portal-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="logo-mark">UTH</div>
+          <div>
+            <h2>Lecturer Portal</h2>
+            <span>Faculty System</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="lecturer-classes.html" class="nav-link">View Assigned Classes</a>
+          <a href="lecturer-schedule.html" class="nav-link active">View Teaching Schedule</a>
+          <a href="lecturer-students.html" class="nav-link">View Student List</a>
+          <a href="lecturer-profile.html" class="nav-link">Manage Profile</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <a href="lecturer-login.html" class="btn btn-danger-soft btn-block">Log Out</a>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <header class="top-bar">
+          <div class="campus-hero-strip">
+            <span>Academic Year 2026 – 2027 • Faculty of Information Systems</span>
+            <h2>Lecturer Teaching Schedule & Class Management</h2>
+          </div>
+
+          <div class="semester-picker">
+            <label for="semester-select">Semester</label>
+            <select id="semester-select" onchange="onSemesterChange()">
+              <option value="2026-1">Semester 1 (2026 - 2027)</option>
+              <option value="2025-2">Semester 2 (2025 - 2026)</option>
+            </select>
+          </div>
+
+          <!-- Bộ điều hướng tuần: Chuyển tuần trước / tuần sau -->
+          <div class="week-navigator">
+            <button type="button" class="btn-nav-week" onclick="prevWeek()" title="Previous Week">&larr; Prev</button>
+            <span class="week-label" id="current-week-display">Week 1 (Loading...)</span>
+            <button type="button" class="btn-nav-week" onclick="nextWeek()" title="Next Week">Next &rarr;</button>
+          </div>
+
+          <div class="top-user-area">
+            <div class="workload-pill">
+              Assigned Classes:
+              <strong id="assigned-count">--</strong>
+            </div>
+            <div class="user-profile-chip">
+              <strong>Dr. Sarah Jenkins</strong>
+              <span>ID: GV202601</span>
+            </div>
+          </div>
+        </header>
+
+        <div class="page-header">
+          <div>
+            <h1>Assigned Classes & Personal Teaching Schedule</h1>
+            <p id="week-date-range">
+              Viewing weekly teaching schedule for selected week (Synced via Lecturer Schedule API).
+            </p>
+          </div>
+          <div>
+            <button class="btn btn-soft" onclick="resetToCurrentWeek()">This Week</button>
+          </div>
+        </div>
+
+        <!-- Main Flow Container -->
+        <div id="schedule-content">
+          <!-- Summary Metrics -->
+          <div class="stats-grid">
+            <div class="stat-tile">
+              <span>Assigned Class Sections</span>
+              <strong id="stat-classes">0 Classes</strong>
+            </div>
+            <div class="stat-tile">
+              <span>Total Teaching Credits</span>
+              <strong id="stat-credits">0 Credits</strong>
+            </div>
+            <div class="stat-tile">
+              <span>Total Enrolled Students</span>
+              <strong id="stat-students">0 Students</strong>
+            </div>
+            <div class="stat-tile">
+              <span>Teaching Days / Week</span>
+              <strong id="stat-days">0 Days</strong>
+            </div>
+          </div>
+
+          <!-- Assigned Class Sections Table -->
+          <section class="surface-card">
+            <div class="surface-header">
+              <h3>Assigned Class Sections</h3>
+              <span class="surface-subtitle">Teaching Roster Overview</span>
+            </div>
+
+            <div class="table-wrap">
+              <table class="clean-table" id="schedule-summary-table">
+                <thead>
+                  <tr>
+                    <th>Section Code</th>
+                    <th>Course Code</th>
+                    <th>Course Name</th>
+                    <th>Credits</th>
+                    <th>Course Dates</th>
+                    <th>Day & Time Slot</th>
+                    <th>Room</th>
+                    <th>Enrolled / Max</th>
+                    <th>Roster Action</th>
+                  </tr>
+                </thead>
+                <tbody id="summary-tbody">
+                  <!-- Làm trống nội dung sẵn sàng nạp động từ MC / API -->
+                </tbody>
+              </table>
+              <div id="summary-pagination"></div>
+              <p id="summary-empty" class="hidden" style="text-align: center; padding: 20px; color: var(--text-muted)">
+                No assigned teaching classes found for this semester.
+              </p>
+            </div>
+          </section>
+
+          <!-- Weekly Teaching Schedule Grid -->
+          <section class="surface-card">
+            <div class="surface-header">
+              <h3>Weekly Personal Teaching Schedule</h3>
+              <span class="surface-subtitle">Classroom & Lab Allocation</span>
+            </div>
+
+            <div class="table-wrap">
+              <div class="timetable-board" id="lecturer-timetable-board">
+                <!-- Nội dung đã làm trống để nạp động theo tuần từ API thực tế -->
+              </div>
+              <div id="timetable-loading" class="tt-empty-notice hidden">
+                Loading teaching schedule from API...
+              </div>
+              <div id="timetable-empty" class="tt-empty-notice hidden">
+                No teaching sessions scheduled for this week.
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="/static/js/lecturer.js"></script>
+    <script src="/static/js/main.js"></script>
+  </body>
+</html>

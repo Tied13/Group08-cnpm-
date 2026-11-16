@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manage Profile - Lecturer Portal</title>
+    <link rel="stylesheet" href="/static/css/lecturer.css" />
+  </head>
+  </head>
+  <body>
+    <div class="portal-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="logo-mark">UTH</div>
+          <div>
+            <h2>Lecturer Portal</h2>
+            <span>Faculty System</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="lecturer-classes.html" class="nav-link"
+            >View Assigned Classes</a
+          >
+          <a href="lecturer-schedule.html" class="nav-link"
+            >View Teaching Schedule</a
+          >
+          <a href="lecturer-students.html" class="nav-link"
+            >View Student List</a
+          >
+          <a href="lecturer-profile.html" class="nav-link active"
+            >Manage Profile</a
+          >
+        </nav>
+
+        <div class="sidebar-footer">
+          <a href="lecturer-login.html" class="btn btn-danger-soft btn-block"
+            >Log Out</a
+          >
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <header class="top-bar">
+          <div class="campus-hero-strip">
+            <span>Academic Year 2026 – 2027 • Faculty Account Security</span>
+            <h2>Lecturer Profile & Password Management</h2>
+          </div>
+
+          <div class="top-user-area">
+            <div class="user-profile-chip">
+              <strong>Dr. Sarah Jenkins</strong>
+              <span>ID: GV202601</span>
+            </div>
+          </div>
+        </header>
+
+        <div id="pw-toast" class="toast-banner hidden"></div>
+
+        <div class="page-header">
+          <div>
+            <h1>Manage Lecturer Profile</h1>
+            <p>
+              View your faculty profile information, update your account
+              password, or log out of the system.
+            </p>
+          </div>
+        </div>
+
+        <div class="two-col-grid">
+          <!-- Lecturer Info -->
+          <section class="surface-card">
+            <div class="surface-header">
+              <h3>Lecturer Information</h3>
+              <span class="badge badge-success">Active Faculty</span>
+            </div>
+
+            <div class="info-list">
+              <div class="info-item">
+                <span>Lecturer ID</span>
+                <strong>GV202601</strong>
+              </div>
+              <div class="info-item">
+                <span>Full Name</span>
+                <strong>Dr. Sarah Jenkins</strong>
+              </div>
+              <div class="info-item">
+                <span>System Role</span>
+                <strong>Lecturer</strong>
+              </div>
+              <div class="info-item">
+                <span>Academic Degree / Rank</span>
+                <strong>Ph.D. in Information Systems</strong>
+              </div>
+              <div class="info-item">
+                <span>Department / Faculty</span>
+                <strong>Management Information Systems</strong>
+              </div>
+              <div class="info-item">
+                <span>Institutional Email</span>
+                <strong>sarah.jenkins@university.edu</strong>
+              </div>
+              <div class="info-item">
+                <span>Office Location</span>
+                <strong>Building B — Room B302</strong>
+              </div>
+            </div>
+          </section>
+
+          <!-- Password Change -->
+          <section class="surface-card">
+            <div class="surface-header">
+              <h3>Change Password</h3>
+              <span class="badge badge-indigo">Encrypted Storage</span>
+            </div>
+
+            <form onsubmit="handleLecturerPassword(event)">
+              <div class="form-group">
+                <label for="cur-pw">Current Password</label>
+                <input
+                  type="password"
+                  id="cur-pw"
+                  placeholder="Enter your current password"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="new-pw">New Password</label>
+                <input
+                  type="password"
+                  id="new-pw"
+                  placeholder="Enter new password"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="cfm-pw">Confirm New Password</label>
+                <input
+                  type="password"
+                  id="cfm-pw"
+                  placeholder="Re-enter new password"
+                  required
+                />
+              </div>
+
+              <div class="action-group" style="margin-top: 22px">
+                <button type="submit" class="btn btn-primary">
+                  Update Password
+                </button>
+                <a href="lecturer-login.html" class="btn btn-danger-soft"
+                  >Log Out of System</a
+                >
+              </div>
+            </form>
+          </section>
+        </div>
+      </main>
+    </div>
+
+   <script src="/static/js/lecturer.js"></script>
+    <script src="/static/js/main.js"></script>
+  </body>
+</html>
