@@ -715,7 +715,10 @@ async function handleCreateSection(event) {
 }
 
 function openCancelSectionModal(classId) {
-  const target = adminState.classes.find((c) => c.Id === classId);
+  const list = (adminState.classes && adminState.classes.length)
+    ? adminState.classes
+    : ((adminState.report && adminState.report.Sections) || []);
+  const target = list.find((c) => c.Id === classId);
   const modal = $id('cancel-sec-modal');
   if (!target || !modal) return;
   adminState.pendingCancelClass = target;
@@ -738,11 +741,18 @@ async function confirmCancelSection() {
   try {
     const { message } = await adminApi(`/classes/${target.Id}/cancel`, { method: 'POST' });
     closeCancelSectionModal();
-    showAdminToast('class-toast', message, 'success');
-    await loadAdminClasses();
+    const toastId = $id('class-toast') ? 'class-toast' : null;
+    showAdminToast(toastId, message, 'success');
+    if ($id('admin-classes-tbody')) {
+      await loadAdminClasses();
+    }
+    if ($id('section-report-tbody')) {
+      await loadReportData();
+    }
   } catch (err) {
     closeCancelSectionModal();
-    showAdminToast('class-toast', err.message, 'danger');
+    const toastId = $id('class-toast') ? 'class-toast' : null;
+    showAdminToast(toastId, err.message, 'danger');
   }
 }
 
@@ -914,8 +924,14 @@ function renderSectionReport() {
   const pageItems = paginate(list, 'sectionReport');
 
   tbody.innerHTML = pageItems.map((s) => {
+    const current = Number(s.CurrentEnrollment || 0);
     const rate = Number(s.FillRate || 0);
-    const fillClass = (s.CurrentEnrollment || 0) < MIN_CLASS_ENROLLMENT ? 'low' : (rate >= 80 ? 'high' : '');
+    const fillClass = current < MIN_CLASS_ENROLLMENT ? 'low' : (rate >= 80 ? 'high' : '');
+    const isCancelled = s.Status === 'Cancelled';
+    const canCancel = !isCancelled && current < MIN_CLASS_ENROLLMENT;
+    const action = canCancel
+      ? `<button class="btn btn-danger btn-sm" onclick="openCancelSectionModal(${s.Id})">Cancel Class</button>`
+      : `<button class="btn btn-disabled btn-sm" disabled title="${isCancelled ? 'Already cancelled' : 'Meets minimum enrollment (>= 15)'}">${isCancelled ? 'Cancelled' : 'Meets Quota'}</button>`;
     return `
       <tr>
         <td><strong>${escapeHtml(s.ClassCode)}</strong></td>
@@ -927,6 +943,7 @@ function renderSectionReport() {
         <td>${rate.toFixed(1)}%
             <div class="capacity-bar-wrap"><div class="capacity-bar-fill ${fillClass}" style="width: ${Math.min(100, rate)}%"></div></div></td>
         <td>${statusBadge(s.Status)}</td>
+        <td>${action}</td>
       </tr>`;
   }).join('');
 
