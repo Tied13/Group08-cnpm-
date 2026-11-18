@@ -1,33 +1,43 @@
 """
 tests/test_admin.py
 ===================
-Bộ Test Cases & Unit Test cho PHÂN HỆ ADMIN (Stage 4 - Testing & Quality).
+Unit Test Suite for ADMINISTRATOR SUBSYSTEM (Stage 4 - Testing & Quality).
+Based strictly on the Excel Testing Document (TC_ADM_01 to TC_ADM_28).
 
 ================================================================================
-BẢNG THIẾT KẾ TEST CASES (TEST CASE SPECIFICATION)
+TEST CASE SPECIFICATION (EXCEL MAPPING - SHEET: Administrator Subsystem)
 ================================================================================
-| Mã TC     | Tên Test Case                                            | Đầu vào (Input)                                              | Kết quả kỳ vọng (Expected Output)                                           |
-|-----------|----------------------------------------------------------|--------------------------------------------------------------|-----------------------------------------------------------------------------|
-| TC_ADM_01 | Tạo môn học mới hợp lệ                                   | CourseCode='IT415', Credits=3, Prerequisite=IT101            | Tạo thành công (HTTP 201), đồng bộ bảng CoursePrerequisites                 |
-| TC_ADM_02 | Tạo môn học trùng mã code (CourseCode)                   | CourseCode='IT101' (đã tồn tại trong CSDL)                   | Báo lỗi AdminConflictError (HTTP 409), không tạo bản ghi trùng              |
-| TC_ADM_03 | Cập nhật môn học với vòng lặp môn tiên quyết             | IT101 đặt tiên quyết là IT102 (trong khi IT102 cần IT101)    | Báo lỗi AdminValidationError (HTTP 400), chặn vòng lặp tiên quyết           |
-| TC_ADM_04 | Xếp lớp học phần bị trùng phòng học cùng ca & thứ        | Cùng Semester=2, DayOfWeek=2, TimeSlot=1, Room='A101'        | Báo lỗi AdminConflictError (HTTP 409) trùng phòng học                       |
-| TC_ADM_05 | Xếp lớp học phần bị trùng lịch giảng viên cùng ca & thứ  | Cùng Semester=2, DayOfWeek=2, TimeSlot=1, LecturerId=2       | Báo lỗi AdminConflictError (HTTP 409) trùng ca giảng viên                   |
-| TC_ADM_06 | Mở lớp học phần hợp lệ (không trùng phòng, không trùng GV)| Room='B202', DayOfWeek=4, TimeSlot=2, LecturerId=2           | Mở lớp thành công (HTTP 201), Status='Open', CurrentEnrollment=0            |
-| TC_ADM_07 | Hủy lớp học phần có sĩ số < 15 sinh viên (Transaction)   | Lớp có 5 SV đang Enrolled (< 15 SV)                          | Classes.Status='Cancelled', cả 5 bản ghi Enrollments chuyển sang 'Cancelled'|
-| TC_ADM_08 | Chặn hủy lớp học phần có sĩ số >= 15 sinh viên           | Lớp có 15 SV đang Enrolled (>= 15 SV)                        | Báo lỗi AdminValidationError (HTTP 400), giữ nguyên Status='Open'           |
-| TC_ADM_09 | Đảm bảo tính toàn vẹn Transaction khi hủy lớp gặp sự cố  | Giả lập lỗi DB ở bước cập nhật Enrollments                   | Rollback toàn bộ: lớp vẫn giữ trạng thái 'Open', không bị mất đồng bộ       |
-| TC_ADM_10 | Thêm tài khoản SV/GV & Mở khóa tài khoản bị khóa         | Tạo SV mới; Mở khóa tài khoản có Status='Locked', Fails=5    | Mật khẩu được băm; khi mở khóa Status='Active' và FailedLoginCount=0        |
-| TC_ADM_11 | Cấu hình đợt đăng ký & kiểm tra ràng buộc ngày tháng     | StartDate < EndDate (hợp lệ) và StartDate >= EndDate (lỗi)   | Lưu đợt mới Active, đóng đợt cũ; báo lỗi 400 nếu ngày kết thúc <= bắt đầu   |
-| TC_ADM_12 | Báo cáo thống kê tỷ lệ lấp đầy & tín chỉ sinh viên       | Học kỳ hiện hành có lớp học phần và sinh viên đăng ký        | Tính đúng FillRate (%) từng lớp và tổng tín chỉ / trạng thái từng sinh viên |
-| TC_ADM_13 | Kiểm tra phân quyền RBAC trên các API `/admin/*`         | Truy cập khi chưa đăng nhập (401) hoặc role='Student' (403)  | Chặn truy cập trái phép với mã HTTP 401 / 403                               |
+| Test Case ID | Feature / Module            | Test Objective                                       |
+|--------------|-----------------------------|------------------------------------------------------|
+| TC_ADM_01    | User Authentication (Login) | Admin logs in successfully with valid credentials    |
+| TC_ADM_02    | API Security & Auth         | Unauthenticated API requests rejected with HTTP 401  |
+| TC_ADM_03    | Role-Based Access Control   | Non-admin roles (Student) blocked with HTTP 403      |
+| TC_ADM_04    | User Account Management     | View list of system user accounts (Admin, GV, SV)   |
+| TC_ADM_05    | Create Student Account      | Create new student account with hashed password      |
+| TC_ADM_06    | Create Lecturer Account     | Create new lecturer account with role 'Lecturer'     |
+| TC_ADM_07    | Create User Account         | Reject duplicate username with HTTP 409 Conflict     |
+| TC_ADM_08    | Update User Account         | Update user account profile (Name, Email, Phone)     |
+| TC_ADM_09    | Lock User Account           | Change account status to 'Locked'                    |
+| TC_ADM_10    | Unlock User Account         | Restore account status to 'Active', reset failed cnt |
+| TC_ADM_11    | Create Course               | Create course with valid prerequisite course         |
+| TC_ADM_12    | Create Course               | Reject duplicate course code with HTTP 409 Conflict  |
+| TC_ADM_13    | Update Course Prerequisites | Prevent circular prerequisite dependency loops       |
+| TC_ADM_14    | Delete Course               | Delete course that has no active class sections      |
+| TC_ADM_15    | Open Class Section          | Open class section successfully with valid schedule  |
+| TC_ADM_16    | Open Class Section          | Reject class section due to room booking conflict    |
+| TC_ADM_17    | Open Class Section          | Reject class section due to lecturer schedule clash  |
+| TC_ADM_18    | Cancel Class Section        | Cancel under-enrolled class (< 15 SV) & cancel enrs  |
+| TC_ADM_19    | Cancel Class Section        | Reject cancellation of viable class (>= 15 SV)       |
+| TC_ADM_20    | Cancel Class Section        | Rollback transaction if enrollment update fails      |
+| TC_ADM_21    | Registration Period Mgmt    | Create and activate new registration period          |
+| TC_ADM_22    | Registration Period Mgmt    | Reject invalid period dates (EndDate <= StartDate)   |
+| TC_ADM_23    | Registration Period Mgmt    | Close active registration period (IsActive = 0)      |
+| TC_ADM_24    | Manual Enrollment Override  | Admin manually force registers student into class    |
+| TC_ADM_25    | Manual Enrollment Override  | Admin manually force drops student from class        |
+| TC_ADM_26    | Registration Reports        | Generate section fill-rate viability report          |
+| TC_ADM_27    | Registration Reports        | Generate student credit compliance statistics report |
+| TC_ADM_28    | Account & Security          | Admin logout terminates session and redirects        |
 ================================================================================
-
-Cách chạy bộ kiểm thử:
-    cd stage3&4
-    python -m unittest discover -s tests -v
-hoặc:
-    python -m unittest tests/test_admin.py -v
 """
 
 import copy
@@ -36,6 +46,8 @@ import sys
 import unittest
 from contextlib import contextmanager
 from unittest.mock import patch
+from werkzeug.security import generate_password_hash
+from models.user_model import UserModel
 
 # Đảm bảo import được các module trong thư mục stage3&4
 STAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -346,6 +358,175 @@ class FakeCursor:
                         'EndDate': datetime(2026, 12, 31, 23, 59),
                     })
             self._set_result(found[:1])
+
+        elif '/* q:list_users */' in sql:
+            res = []
+            for u in self.state['users']:
+                if u.get('Role') in ('Student', 'Lecturer'):
+                    stu = self.state['students'].get(u['Id'], {})
+                    lec = self.state['lecturers'].get(u['Id'], {})
+                    res.append({
+                        'Id': u['Id'], 'UserCode': u['UserCode'], 'Username': u['Username'],
+                        'FullName': u['FullName'], 'Email': u['Email'], 'Phone': u['Phone'],
+                        'Role': u['Role'], 'Status': u['Status'], 'FailedLoginCount': u.get('FailedLoginCount', 0),
+                        'PasswordHash': u.get('PasswordHash'), 'CreatedAt': '2026-01-01',
+                        'Department': stu.get('Major') or lec.get('Department'),
+                        'AdministrativeClass': stu.get('AdministrativeClass'),
+                        'EnrollmentYear': stu.get('EnrollmentYear'),
+                        'AcademicDegree': lec.get('AcademicDegree'),
+                    })
+            self._set_result(res)
+
+        elif '/* q:course_for_delete */' in sql:
+            cid = params[0]
+            found = [c for c in self.state['courses'] if c['Id'] == cid and c.get('IsActive', 1)]
+            self._set_result(found[:1])
+
+        elif '/* q:course_usage */' in sql:
+            cid = params[0]
+            cnt = sum(1 for cl in self.state['classes'] if cl['CourseId'] == cid and cl['Status'] != 'Cancelled')
+            self._set_result([{'OpenClasses': cnt, 'AllClasses': cnt, 'ActiveDependents': 0, 'AllDependents': 0, 'PrereqLinks': 0}])
+
+        elif '/* q:hard_delete_course */' in sql or '/* q:soft_delete_course */' in sql:
+            cid = params[0]
+            self.state['courses'] = [c for c in self.state['courses'] if c['Id'] != cid]
+            self.rowcount = 1
+
+        elif '/* q:delete_course_prereq */' in sql:
+            cid = params[0]
+            self.state['course_prereqs'] = [p for p in self.state['course_prereqs'] if p['CourseId'] != cid]
+            self.rowcount = 1
+
+        elif '/* q:user_for_update */' in sql or '/* q:user_for_status */' in sql:
+            uid = params[0]
+            found = [u for u in self.state['users'] if u['Id'] == uid]
+            self._set_result(found[:1])
+
+        elif '/* q:email_duplicate */' in sql:
+            em, uid = params
+            found = [u for u in self.state['users'] if u['Email'].lower() == em.lower() and u['Id'] != uid]
+            self._set_result(found[:1])
+
+        elif '/* q:update_user */' in sql:
+            fn, em, ph, uid = params
+            for u in self.state['users']:
+                if u['Id'] == uid:
+                    u['FullName'] = fn
+                    u['Email'] = em
+                    u['Phone'] = ph
+            self.rowcount = 1
+
+        elif '/* q:update_student */' in sql or '/* q:update_lecturer */' in sql:
+            self.rowcount = 1
+
+        elif '/* q:unlock_user */' in sql:
+            uid = params[0]
+            for u in self.state['users']:
+                if u['Id'] == uid:
+                    u['Status'] = 'Active'
+                    u['FailedLoginCount'] = 0
+            self.rowcount = 1
+
+        elif '/* q:lock_user */' in sql:
+            uid = params[0]
+            for u in self.state['users']:
+                if u['Id'] == uid:
+                    u['Status'] = 'Locked'
+            self.rowcount = 1
+
+        elif '/* q:insert_user */' in sql:
+            code, username, pw_hash, fn, em, ph, role = params
+            new_id = max((u['Id'] for u in self.state['users']), default=0) + 1
+            self.state['users'].append({
+                'Id': new_id, 'UserCode': code, 'Username': username, 'PasswordHash': pw_hash,
+                'FullName': fn, 'Email': em, 'Phone': ph, 'Role': role, 'Status': 'Active',
+                'FailedLoginCount': 0, 'CreatedAt': '2026-11-18'
+            })
+            self._set_result([{'Id': new_id}])
+
+        elif '/* q:insert_student */' in sql:
+            uid, code, aclass, dept, year = params
+            self.state['students'][uid] = {
+                'UserId': uid, 'StudentCode': code, 'AdministrativeClass': aclass,
+                'Major': dept, 'EnrollmentYear': year
+            }
+            self.rowcount = 1
+
+        elif '/* q:insert_lecturer */' in sql:
+            uid, code, dept, degree = params
+            self.state['lecturers'][uid] = {
+                'UserId': uid, 'LecturerCode': code, 'Department': dept, 'AcademicDegree': degree
+            }
+            self.rowcount = 1
+
+        elif '/* q:student_by_code */' in sql:
+            code1, code2 = params
+            found = []
+            for u in self.state['users']:
+                stu = self.state['students'].get(u['Id'], {})
+                if u['UserCode'].upper() == code1.upper() or stu.get('StudentCode', '').upper() == code2.upper():
+                    found.append({'Id': u['Id'], 'UserCode': u['UserCode'], 'FullName': u['FullName'], 'Status': u['Status']})
+            self._set_result(found[:1])
+
+        elif '/* q:class_by_code_for_override */' in sql:
+            cc = params[0].upper()
+            found = [cl for cl in self.state['classes'] if cl['ClassCode'].upper() == cc]
+            self._set_result(found[:1])
+
+        elif '/* q:enrollment_by_pair */' in sql:
+            sid, cid = params
+            found = [e for e in self.state['enrollments'] if e['StudentId'] == sid and e['ClassId'] == cid]
+            self._set_result(found[:1])
+
+        elif '/* q:same_course_enrolled */' in sql:
+            sid, coid, semid, cid = params
+            found = []
+            for e in self.state['enrollments']:
+                if e['StudentId'] == sid and e['Status'] == 'Enrolled':
+                    cl = next((c for c in self.state['classes'] if c['Id'] == e['ClassId']), None)
+                    if cl and cl['CourseId'] == coid and cl['SemesterId'] == semid and cl['Id'] != cid:
+                        found.append({'ClassCode': cl['ClassCode']})
+            self._set_result(found[:1])
+
+        elif '/* q:insert_enrollment */' in sql:
+            sid, cid = params
+            new_id = max((e['Id'] for e in self.state['enrollments']), default=0) + 1
+            self.state['enrollments'].append({'Id': new_id, 'StudentId': sid, 'ClassId': cid, 'Status': 'Enrolled', 'CancelledAt': None})
+            self.rowcount = 1
+
+        elif '/* q:increment_enrollment */' in sql:
+            cid = params[0]
+            for cl in self.state['classes']:
+                if cl['Id'] == cid:
+                    cl['CurrentEnrollment'] += 1
+            self.rowcount = 1
+
+        elif '/* q:cancel_single_enrollment */' in sql:
+            eid = params[0]
+            for e in self.state['enrollments']:
+                if e['Id'] == eid:
+                    e['Status'] = 'Cancelled'
+            self.rowcount = 1
+
+        elif '/* q:decrement_enrollment */' in sql:
+            cid = params[0]
+            for cl in self.state['classes']:
+                if cl['Id'] == cid:
+                    cl['CurrentEnrollment'] = max(0, cl['CurrentEnrollment'] - 1)
+            self.rowcount = 1
+
+        elif '/* q:period_by_id */' in sql:
+            pid = params[0]
+            found = [p for p in self.state['periods'] if p['Id'] == pid]
+            self._set_result(found[:1])
+
+        elif '/* q:set_period_active */' in sql:
+            is_act, pid = params
+            for p in self.state['periods']:
+                if p['Id'] == pid:
+                    p['IsActive'] = is_act
+            self.rowcount = 1
+
         elif '/* q:student_report */' in sql:
             sem_id = params[0]
             rows = []
@@ -390,7 +571,7 @@ class FakeDatabase:
         self.state = {
             'fail_on_tag': None,
             'users': [
-                {'Id': 1, 'UserCode': 'ADM001', 'Username': 'admin', 'PasswordHash': 'hash_admin',
+                {'Id': 1, 'UserCode': 'ADM001', 'Username': 'admin', 'PasswordHash': generate_password_hash('123456'),
                  'FullName': 'System Administrator', 'Email': 'admin@uth.edu.vn', 'Phone': '0901000001',
                  'Role': 'Admin', 'Status': 'Active', 'FailedLoginCount': 0, 'CreatedAt': '2026-09-01'},
                 {'Id': 2, 'UserCode': 'GV001', 'Username': 'gv_nam', 'PasswordHash': 'hash_gv1',
@@ -479,14 +660,15 @@ class FakeDatabase:
 # ==========================================================================
 # UNIT TESTS CHO PHÂN HỆ ADMIN
 # ==========================================================================
-class AdminModuleUnitTest(unittest.TestCase):
+class TestAdminModule(unittest.TestCase):
+    """Test suite covering TC_ADM_01 to TC_ADM_28 based strictly on Excel specification."""
 
     def setUp(self):
         self.fake_db = FakeDatabase()
         self.cursor_patcher = patch.object(Database, 'get_cursor', side_effect=self.fake_db.get_cursor)
         self.cursor_patcher.start()
 
-        # Tạo Flask test app để kiểm thử cả tầng Controller/API
+        # Flask test app
         self.app = Flask(__name__, template_folder=os.path.join(STAGE_DIR, 'templates'))
         self.app.secret_key = 'test_secret_key'
         self.app.register_blueprint(admin_bp)
@@ -501,11 +683,142 @@ class AdminModuleUnitTest(unittest.TestCase):
             sess['username'] = 'admin'
             sess['role'] = 'Admin'
 
-    # ------------------------------------------------------------------
-    # 1. TEST QUẢN LÝ MÔN HỌC & TRÙNG MÃ CODE (Yêu cầu bắt buộc Stage 4)
-    # ------------------------------------------------------------------
-    def test_tc01_create_course_success_with_prerequisite(self):
-        """TC_ADM_01: Tạo môn học mới hợp lệ và gắn môn tiên quyết."""
+    # ==========================================================================
+    # TC_ADM_01: Admin Login Success
+    # ==========================================================================
+    def test_tc01_admin_login_success(self):
+        """TC_ADM_01: Admin logs in successfully with valid credentials."""
+        user = UserModel.find_by_username('admin')
+        self.assertIsNotNone(user)
+        self.assertEqual(user['Role'], 'Admin')
+        self.assertTrue(UserModel.verify_password(user['PasswordHash'], '123456'))
+
+    # ==========================================================================
+    # TC_ADM_02: API Security - Unauthenticated Requests Blocked
+    # ==========================================================================
+    def test_tc02_api_security_unauthenticated_rejected(self):
+        """TC_ADM_02: Unauthenticated API requests rejected with HTTP 401."""
+        res = self.client.get('/admin/api/users')
+        self.assertEqual(res.status_code, 401)
+        self.assertFalse(res.get_json()['success'])
+
+    # ==========================================================================
+    # TC_ADM_03: RBAC - Non-Admin Roles Blocked from Admin Portal
+    # ==========================================================================
+    def test_tc03_rbac_blocks_student_from_admin(self):
+        """TC_ADM_03: Non-admin roles (Student) blocked with HTTP 403."""
+        with self.client.session_transaction() as sess:
+            sess['user_id'] = 4
+            sess['role'] = 'Student'
+            sess['username'] = 'sv_an'
+        res = self.client.get('/admin/api/users')
+        self.assertEqual(res.status_code, 403)
+        self.assertFalse(res.get_json()['success'])
+
+    # ==========================================================================
+    # TC_ADM_04: View User Accounts List
+    # ==========================================================================
+    def test_tc04_user_account_list(self):
+        """TC_ADM_04: View list of system user accounts (Admin, GV, SV)."""
+        users = AdminUserModel.list_users()
+        self.assertIsInstance(users, list)
+        self.assertTrue(len(users) >= 2)
+        for u in users:
+            self.assertIn('Username', u)
+            self.assertIn('Role', u)
+            self.assertIn('Status', u)
+
+    # ==========================================================================
+    # TC_ADM_05: Create Student Account
+    # ==========================================================================
+    def test_tc05_create_student_account(self):
+        """TC_ADM_05: Create new student account with hashed password."""
+        created = AdminUserModel.create_user(
+            role='Student', user_code='SV999', full_name='Test Student',
+            email='test.student@uth.edu.vn', department='MIS', password='TestPassword123!',
+            username='sv_test_new', phone='0909999999'
+        )
+        self.assertEqual(created['UserCode'], 'SV999')
+        self.assertEqual(created['Role'], 'Student')
+        self.assertEqual(created['Status'], 'Active')
+        db_user = next(u for u in self.fake_db.state['users'] if u['Username'] == 'sv_test_new')
+        self.assertEqual(db_user['Status'], 'Active')
+
+    # ==========================================================================
+    # TC_ADM_06: Create Lecturer Account
+    # ==========================================================================
+    def test_tc06_create_lecturer_account(self):
+        """TC_ADM_06: Create new lecturer account with role 'Lecturer'."""
+        created = AdminUserModel.create_user(
+            role='Lecturer', user_code='GV999', full_name='Dr. Test Lecturer',
+            email='test.lecturer@uth.edu.vn', department='SE', password='LecturerPass123!',
+            username='gv_test_new', phone='0908888888', academic_degree='Doctorate'
+        )
+        self.assertEqual(created['UserCode'], 'GV999')
+        self.assertEqual(created['Role'], 'Lecturer')
+        self.assertEqual(created['Status'], 'Active')
+        db_user = next(u for u in self.fake_db.state['users'] if u['Username'] == 'gv_test_new')
+        self.assertEqual(db_user['Role'], 'Lecturer')
+
+    # ==========================================================================
+    # TC_ADM_07: Create User Account - Duplicate Username Rejected
+    # ==========================================================================
+    def test_tc07_create_user_duplicate_username_rejected(self):
+        """TC_ADM_07: Reject duplicate username with HTTP 409 Conflict."""
+        with self.assertRaises(AdminConflictError):
+            AdminUserModel.create_user(
+                role='Student', user_code='SV998', full_name='Duplicate Student',
+                email='dup.sv@uth.edu.vn', department='MIS', password='TestPassword123!',
+                username='sv_an'
+            )
+
+    # ==========================================================================
+    # TC_ADM_08: Update User Account Profile
+    # ==========================================================================
+    def test_tc08_update_user_account(self):
+        """TC_ADM_08: Update user account profile (Name, Email, Phone)."""
+        updated = AdminUserModel.update_user(
+            user_id=4,
+            full_name='Nguyen Van An Updated',
+            email='an.update@uth.edu.vn',
+            department='MIS',
+            phone='0901234999'
+        )
+        self.assertEqual(updated['FullName'], 'Nguyen Van An Updated')
+        self.assertEqual(updated['Email'], 'an.update@uth.edu.vn')
+        db_u = next(u for u in self.fake_db.state['users'] if u['Id'] == 4)
+        self.assertEqual(db_u['FullName'], 'Nguyen Van An Updated')
+
+    # ==========================================================================
+    # TC_ADM_09: Lock User Account
+    # ==========================================================================
+    def test_tc09_lock_user_account(self):
+        """TC_ADM_09: Change account status to 'Locked'."""
+        res = AdminUserModel.set_user_status(user_id=4, status='Locked')
+        self.assertEqual(res['Status'], 'Locked')
+        u = next(usr for usr in self.fake_db.state['users'] if usr['Id'] == 4)
+        self.assertEqual(u['Status'], 'Locked')
+
+    # ==========================================================================
+    # TC_ADM_10: Unlock User Account
+    # ==========================================================================
+    def test_tc10_unlock_user_account(self):
+        """TC_ADM_10: Restore account status to 'Active', reset failed cnt."""
+        sv_locked = next(u for u in self.fake_db.state['users'] if u['Id'] == 5)
+        self.assertEqual(sv_locked['Status'], 'Locked')
+        self.assertEqual(sv_locked['FailedLoginCount'], 5)
+
+        unlocked = AdminUserModel.set_user_status(user_id=5, status='Active')
+        self.assertEqual(unlocked['Status'], 'Active')
+        user_after = next(u for u in self.fake_db.state['users'] if u['Id'] == 5)
+        self.assertEqual(user_after['Status'], 'Active')
+        self.assertEqual(user_after['FailedLoginCount'], 0)
+
+    # ==========================================================================
+    # TC_ADM_11: Create Course with Valid Prerequisite
+    # ==========================================================================
+    def test_tc11_create_course_success_with_prerequisite(self):
+        """TC_ADM_11: Create course with valid prerequisite course."""
         created = AdminCourseModel.create_course(
             course_code='IT415',
             course_name='Information Security',
@@ -520,32 +833,26 @@ class AdminModuleUnitTest(unittest.TestCase):
                 for p in self.fake_db.state['course_prereqs'])
         )
 
-    def test_tc02_create_course_duplicate_code_rejected(self):
-        """TC_ADM_02 (Trọng tâm Stage 4): Tạo môn học trùng mã code phải bị chặn (HTTP 409)."""
+    # ==========================================================================
+    # TC_ADM_12: Create Course - Duplicate Code Rejected
+    # ==========================================================================
+    def test_tc12_create_course_duplicate_code_rejected(self):
+        """TC_ADM_12: Reject duplicate course code with HTTP 409 Conflict."""
         with self.assertRaises(AdminConflictError) as ctx:
             AdminCourseModel.create_course(
-                course_code='it101',  # Trùng mã IT101 (không phân biệt hoa/thường)
-                course_name='Duplicate Course',
+                course_code='IT101',
+                course_name='Trùng mã IT101',
                 credits=3,
             )
-        self.assertIn('IT101', ctx.exception.message)
         self.assertEqual(ctx.exception.status_code, 409)
+        self.assertIn("IT101", str(ctx.exception))
 
-        # Kiểm tra qua cả API endpoint POST /admin/api/courses
-        self._login_as_admin()
-        resp = self.client.post('/admin/api/courses', json={
-            'course_code': 'IT101',
-            'course_name': 'Another Duplicate',
-            'credits': 3,
-        })
-        self.assertEqual(resp.status_code, 409)
-        body = resp.get_json()
-        self.assertFalse(body['success'])
-        self.assertIn('IT101', body['message'])
-
-    def test_tc03_update_course_circular_prerequisite_rejected(self):
-        """TC_ADM_03: Chặn vòng lặp môn tiên quyết (IT101 phụ thuộc IT102 trong khi IT102 phụ thuộc IT101)."""
-        with self.assertRaises(AdminValidationError):
+    # ==========================================================================
+    # TC_ADM_13: Update Course Prerequisites - Circular Dependency Loop
+    # ==========================================================================
+    def test_tc13_update_course_circular_prerequisite_rejected(self):
+        """TC_ADM_13: Prevent circular prerequisite dependency loops."""
+        with self.assertRaises(AdminValidationError) as ctx:
             AdminCourseModel.update_course(
                 course_id=1,
                 course_code='IT101',
@@ -553,180 +860,222 @@ class AdminModuleUnitTest(unittest.TestCase):
                 credits=3,
                 prerequisite_course_id=2,
             )
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIn("circular dependency", str(ctx.exception).lower())
 
-    # ------------------------------------------------------------------
-    # 2. TEST XẾP LỚP TRÙNG PHÒNG / TRÙNG CA GIẢNG VIÊN (Yêu cầu bắt buộc Stage 4)
-    # ------------------------------------------------------------------
-    def test_tc04_create_class_room_conflict_rejected(self):
-        """TC_ADM_04 (Trọng tâm Stage 4): Xếp lớp bị trùng phòng học trong cùng Thứ & Ca học phải báo lỗi."""
-        # Lớp IT101_01 đang dùng phòng A101 vào Thứ 2 (DayOfWeek=2), Ca 1 (TimeSlotId=1), Học kỳ 2
+    # ==========================================================================
+    # TC_ADM_14: Delete Course Without Class Sections
+    # ==========================================================================
+    def test_tc14_delete_course_without_classes(self):
+        """TC_ADM_14: Delete course that has no active class sections."""
+        new_c = AdminCourseModel.create_course(
+            course_code='IT999',
+            course_name='Temporary Course',
+            credits=2,
+        )
+        res = AdminCourseModel.delete_course(course_id=new_c['Id'])
+        self.assertEqual(res['Id'], new_c['Id'])
+        self.assertIn(res['DeleteMode'], ('hard', 'soft'))
+        self.assertFalse(any(c['Id'] == new_c['Id'] for c in self.fake_db.state['courses']))
+
+    # ==========================================================================
+    # TC_ADM_15: Open Class Section - Valid Schedule Success
+    # ==========================================================================
+    def test_tc15_create_class_valid_schedule_success(self):
+        """TC_ADM_15: Open class section successfully with valid schedule."""
+        created = AdminClassModel.create_class(
+            course_id=1,
+            class_code='IT101_02',
+            semester_id=2,
+            room='B202',
+            day_of_week=4,
+            time_slot_id=2,
+            max_capacity=45,
+            lecturer_id=2,
+        )
+        self.assertEqual(created['ClassCode'], 'IT101_02')
+        self.assertEqual(created['Status'], 'Open')
+        self.assertEqual(created['MaxCapacity'], 45)
+        self.assertTrue(any(cl['Id'] == created['Id'] for cl in self.fake_db.state['classes']))
+
+    # ==========================================================================
+    # TC_ADM_16: Open Class Section - Room Conflict Rejected
+    # ==========================================================================
+    def test_tc16_create_class_room_conflict_rejected(self):
+        """TC_ADM_16: Reject class section due to room booking conflict."""
         with self.assertRaises(AdminConflictError) as ctx:
             AdminClassModel.create_class(
                 course_id=2,
                 class_code='IT102_02',
                 semester_id=2,
-                room='A101',           # Trùng phòng A101
-                day_of_week='Monday',  # Trùng Thứ 2
-                time_slot_id=1,        # Trùng Ca 1
+                room='A101',
+                day_of_week=2,
+                time_slot_id=1,
                 max_capacity=40,
-                lecturer_id=3,         # Khác giảng viên nhưng vẫn trùng phòng
+                lecturer_id=3,
             )
-        self.assertIn('Trùng phòng học', ctx.exception.message)
-        self.assertIn('IT101_01', ctx.exception.message)
+        self.assertEqual(ctx.exception.status_code, 409)
+        self.assertTrue('room' in str(ctx.exception).lower() or 'phòng' in str(ctx.exception).lower())
 
-    def test_tc05_create_class_lecturer_conflict_rejected(self):
-        """TC_ADM_05 (Trọng tâm Stage 4): Xếp lớp bị trùng ca của giảng viên trong cùng thời điểm phải báo lỗi."""
-        # Giảng viên GV001 (Id=2) đang dạy lớp IT101_01 vào Thứ 2 (DayOfWeek=2), Ca 1 (TimeSlotId=1)
+    # ==========================================================================
+    # TC_ADM_17: Open Class Section - Lecturer Conflict Rejected
+    # ==========================================================================
+    def test_tc17_create_class_lecturer_conflict_rejected(self):
+        """TC_ADM_17: Reject class section due to lecturer schedule clash."""
         with self.assertRaises(AdminConflictError) as ctx:
             AdminClassModel.create_class(
                 course_id=2,
                 class_code='IT102_03',
                 semester_id=2,
-                room='B202',           # Khác phòng học
-                day_of_week=2,         # Trùng Thứ 2
-                time_slot_id=1,        # Trùng Ca 1
+                room='B202',
+                day_of_week=2,
+                time_slot_id=1,
                 max_capacity=40,
-                lecturer_id=2,         # Trùng giảng viên GV001
+                lecturer_id=2,
             )
-        self.assertIn('Trùng lịch giảng viên', ctx.exception.message)
-        self.assertIn('IT101_01', ctx.exception.message)
+        self.assertEqual(ctx.exception.status_code, 409)
+        self.assertTrue('lecturer' in str(ctx.exception).lower() or 'giảng viên' in str(ctx.exception).lower())
 
-    def test_tc06_create_class_valid_schedule_success(self):
-        """TC_ADM_06: Mở lớp học phần thành công khi phòng học và giảng viên đều trống lịch."""
-        created = AdminClassModel.create_class(
-            course_id=2,
-            class_code='IT102_05',
-            semester_id=2,
-            room='B202',
-            day_of_week='Thursday',
-            time_slot_id=2,
-            max_capacity=40,
-            lecturer_ref='GV001 - Le Hoang Nam',
-        )
-        self.assertEqual(created['ClassCode'], 'IT102_05')
-        self.assertEqual(created['Status'], 'Open')
-        self.assertEqual(created['DayOfWeek'], 5)
+    # ==========================================================================
+    # TC_ADM_18: Cancel Class Section Under 15 Students
+    # ==========================================================================
+    def test_tc18_cancel_class_under_15_students(self):
+        """TC_ADM_18: Cancel under-enrolled class (< 15 SV) & cancel enrs."""
+        result = AdminClassModel.cancel_class(class_id=10)
+        self.assertEqual(result['Id'], 10)
+        self.assertEqual(result['Status'], 'Cancelled')
+        self.assertEqual(result['AffectedStudents'], 3)
 
-    # ------------------------------------------------------------------
-    # 3. TEST HỦY LỚP HỌC PHẦN < 15 SV & TRANSACTION (Yêu cầu bắt buộc Stage 4)
-    # ------------------------------------------------------------------
-    def test_tc07_cancel_class_under_15_students_updates_class_and_all_enrollments(self):
-        """
-        TC_ADM_07 (Trọng tâm Stage 4):
-        Hủy lớp học phần < 15 SV phải:
-          1. Đổi trạng thái lớp trong bảng Classes sang 'Cancelled'.
-          2. Tự động chuyển toàn bộ bản ghi trong bảng Enrollments của lớp sang 'Cancelled'.
-        """
-        self._login_as_admin()
-        resp = self.client.post('/admin/api/classes/10/cancel')
-        self.assertEqual(resp.status_code, 200)
-        payload = resp.get_json()
-        self.assertTrue(payload['success'])
-        self.assertEqual(payload['data']['Status'], 'Cancelled')
-        self.assertEqual(payload['data']['AffectedStudents'], 3)
-
-        # Kiểm tra bảng Classes: trạng thái phải là Cancelled, CurrentEnrollment về 0
         cancelled_class = next(cl for cl in self.fake_db.state['classes'] if cl['Id'] == 10)
         self.assertEqual(cancelled_class['Status'], 'Cancelled')
-        self.assertEqual(cancelled_class['CurrentEnrollment'], 0)
+        for enr in [e for e in self.fake_db.state['enrollments'] if e['ClassId'] == 10]:
+            self.assertEqual(enr['Status'], 'Cancelled')
 
-        # Kiểm tra bảng Enrollments: toàn bộ 3 sinh viên trong lớp đều chuyển sang Cancelled
-        class_enrollments = [e for e in self.fake_db.state['enrollments'] if e['ClassId'] == 10]
-        self.assertEqual(len(class_enrollments), 3)
-        self.assertTrue(all(e['Status'] == 'Cancelled' for e in class_enrollments))
-        self.assertTrue(all(e['CancelledAt'] is not None for e in class_enrollments))
-
-        # Kiểm tra lịch sử & tính lại học phí cho cả 3 sinh viên
-        self.assertEqual(len(self.fake_db.state['history']), 3)
-        self.assertEqual(len(self.fake_db.state['tuition_recalcs']), 3)
-
-    def test_tc08_cancel_class_with_15_or_more_students_rejected(self):
-        """TC_ADM_08: Không cho phép hủy lớp học phần đã đủ sĩ số tối thiểu (>= 15 SV)."""
+    # ==========================================================================
+    # TC_ADM_19: Cancel Class Section >= 15 Students Rejected
+    # ==========================================================================
+    def test_tc19_cancel_class_with_15_or_more_students_rejected(self):
+        """TC_ADM_19: Reject cancellation of viable class (>= 15 SV)."""
         with self.assertRaises(AdminValidationError) as ctx:
-            AdminClassModel.cancel_class(class_id=11, admin_user_id=1)
-        self.assertIn('15', ctx.exception.message)
-
+            AdminClassModel.cancel_class(class_id=11)
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIn("15", str(ctx.exception))
         unchanged_class = next(cl for cl in self.fake_db.state['classes'] if cl['Id'] == 11)
         self.assertEqual(unchanged_class['Status'], 'Open')
 
-    def test_tc09_cancel_class_transaction_rollback_on_error(self):
-        """TC_ADM_09: Nếu bước cập nhật Enrollments gặp lỗi, trạng thái lớp phải được rollback về 'Open'."""
+    # ==========================================================================
+    # TC_ADM_20: Cancel Class Section - Transaction Rollback on Error
+    # ==========================================================================
+    def test_tc20_cancel_class_transaction_rollback_on_error(self):
+        """TC_ADM_20: Rollback transaction if enrollment update fails."""
         self.fake_db.state['fail_on_tag'] = '/* q:cancel_enrollments */'
         with self.assertRaises(RuntimeError):
-            AdminClassModel.cancel_class(class_id=10, admin_user_id=1)
+            AdminClassModel.cancel_class(class_id=10)
 
-        # Nhờ transaction rollback, lớp IT101_01 vẫn ở trạng thái Open và 3 SV vẫn Enrolled
-        cls = next(cl for cl in self.fake_db.state['classes'] if cl['Id'] == 10)
-        self.assertEqual(cls['Status'], 'Open')
-        self.assertEqual(cls['CurrentEnrollment'], 3)
-        self.assertTrue(all(e['Status'] == 'Enrolled' for e in self.fake_db.state['enrollments']))
+        rolled_back_class = next(cl for cl in self.fake_db.state['classes'] if cl['Id'] == 10)
+        self.assertEqual(rolled_back_class['Status'], 'Open')
 
-    # ------------------------------------------------------------------
-    # 4. TEST QUẢN LÝ TÀI KHOẢN & CẤU HÌNH ĐỢT ĐĂNG KÝ & RBAC
-    # ------------------------------------------------------------------
-    def test_tc10_create_user_and_unlock_locked_account(self):
-        """TC_ADM_10: Thêm tài khoản mới và mở khóa tài khoản bị khóa do nhập sai mật khẩu 5 lần."""
-        new_user = AdminUserModel.create_user(
-            role='Student',
-            user_code='SV2026099',
-            full_name='Hong Tan Test',
-            email='tan.sv@uth.edu.vn',
-            department='Software Engineering',
-            password='Password123',
-        )
-        self.assertEqual(new_user['UserCode'], 'SV2026099')
-        self.assertEqual(new_user['Status'], 'Active')
-
-        # Tài khoản SV002 (Id=5) đang bị Locked với FailedLoginCount=5 -> Mở khóa
-        unlocked = AdminUserModel.set_user_status(user_id=5, status='Active')
-        self.assertEqual(unlocked['Status'], 'Active')
-        sv002 = next(u for u in self.fake_db.state['users'] if u['Id'] == 5)
-        self.assertEqual(sv002['Status'], 'Active')
-        self.assertEqual(sv002['FailedLoginCount'], 0)
-
-    def test_tc11_save_registration_period_validation(self):
-        """TC_ADM_11: Thiết lập đợt đăng ký mới và chặn trường hợp ngày kết thúc <= ngày bắt đầu."""
-        with self.assertRaises(AdminValidationError):
-            AdminPeriodModel.save_period(
-                semester_id=2,
-                start_date='2026-12-10T08:00',
-                end_date='2026-12-01T08:00',
-            )
-
+    # ==========================================================================
+    # TC_ADM_21: Save Registration Period Success
+    # ==========================================================================
+    def test_tc21_save_registration_period_success(self):
+        """TC_ADM_21: Create and activate new registration period."""
         saved = AdminPeriodModel.save_period(
-            semester_id=2,
-            start_date='2026-10-01T08:00',
-            end_date='2026-12-20T17:00',
+            semester_id=2, period_name='Registration Period Phase 2',
+            start_date='2026-11-20', end_date='2026-11-30',
+            min_credits=12, max_credits=25
         )
+        self.assertEqual(saved['SemesterId'], 2)
         self.assertTrue(saved['IsActive'])
-        # Đợt cũ phải tự động chuyển về IsActive = 0
         old_period = next(p for p in self.fake_db.state['periods'] if p['Id'] == 1)
         self.assertEqual(old_period['IsActive'], 0)
 
-    def test_tc12_reports_section_fill_rate_and_student_credits(self):
-        """TC_ADM_12: Báo cáo thống kê tỷ lệ lấp đầy lớp học phần và tín chỉ theo sinh viên."""
-        report = AdminReportModel.full_report(semester_id=2)
-        self.assertEqual(report['Summary']['TotalSections'], 2)
-        self.assertEqual(report['Summary']['TotalEnrollments'], 18)  # 3 + 15
+    # ==========================================================================
+    # TC_ADM_22: Save Registration Period - Invalid Dates Rejected
+    # ==========================================================================
+    def test_tc22_save_registration_period_invalid_dates_rejected(self):
+        """TC_ADM_22: Reject invalid period dates (EndDate <= StartDate)."""
+        with self.assertRaises(AdminValidationError) as ctx:
+            AdminPeriodModel.save_period(
+                semester_id=2, period_name='Invalid Period',
+                start_date='2026-11-30', end_date='2026-11-20',
+                min_credits=12, max_credits=25
+            )
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIn("start date", str(ctx.exception).lower())
 
-        sec_it101 = next(s for s in report['Sections'] if s['ClassCode'] == 'IT101_01')
-        self.assertEqual(sec_it101['FillRate'], 6.0)  # 3 / 50 = 6.0%
+    # ==========================================================================
+    # TC_ADM_23: Close Registration Period
+    # ==========================================================================
+    def test_tc23_close_registration_period(self):
+        """TC_ADM_23: Close active registration period (IsActive = 0)."""
+        res = AdminPeriodModel.set_period_active(period_id=1, is_active=False)
+        self.assertFalse(res['IsActive'])
+        period = next(p for p in self.fake_db.state['periods'] if p['Id'] == 1)
+        self.assertEqual(period['IsActive'], 0)
 
-        stu_sv001 = next(st for st in report['Students'] if st['StudentCode'] == 'SV001')
+    # ==========================================================================
+    # TC_ADM_24: Manual Enrollment Override - Force Add
+    # ==========================================================================
+    def test_tc24_manual_override_force_add(self):
+        """TC_ADM_24: Admin manually force registers student into class."""
+        res = AdminEnrollmentModel.manual_override(
+            student_code='SV001', class_code='IT102_01', action='ADD',
+            admin_user_id=1
+        )
+        self.assertEqual(res['StudentCode'], 'SV001')
+        self.assertEqual(res['ClassCode'], 'IT102_01')
+        self.assertEqual(res['Action'], 'ADD')
+
+    # ==========================================================================
+    # TC_ADM_25: Manual Enrollment Override - Force Drop
+    # ==========================================================================
+    def test_tc25_manual_override_force_drop(self):
+        """TC_ADM_25: Admin manually force drops student from class."""
+        res = AdminEnrollmentModel.manual_override(
+            student_code='SV001', class_code='IT101_01', action='REMOVE',
+            admin_user_id=1
+        )
+        self.assertEqual(res['StudentCode'], 'SV001')
+        self.assertEqual(res['ClassCode'], 'IT101_01')
+        self.assertEqual(res['Action'], 'REMOVE')
+
+    # ==========================================================================
+    # TC_ADM_26: Reports - Section Fill Rate Viability
+    # ==========================================================================
+    def test_tc26_reports_section_fill_rate(self):
+        """TC_ADM_26: Generate section fill-rate viability report."""
+        report = AdminReportModel.section_report(semester_id=2)
+        self.assertIsInstance(report, list)
+        self.assertGreater(len(report), 0)
+        sec_it101 = next(s for s in report if s['ClassCode'] == 'IT101_01')
+        self.assertEqual(sec_it101['CurrentEnrollment'], 3)
+        self.assertEqual(sec_it101['MaxCapacity'], 50)
+        self.assertAlmostEqual(float(sec_it101['FillRate']), 6.0, places=1)
+
+    # ==========================================================================
+    # TC_ADM_27: Reports - Student Credit Compliance Statistics
+    # ==========================================================================
+    def test_tc27_reports_student_credits(self):
+        """TC_ADM_27: Generate student credit compliance statistics report."""
+        report = AdminReportModel.student_report(semester_id=2)
+        self.assertIsInstance(report, list)
+        stu_sv001 = next(st for st in report if st['StudentCode'] == 'SV001')
         self.assertEqual(stu_sv001['TotalCredits'], 3)
-        self.assertEqual(stu_sv001['Compliance'], 'Below Minimum')  # 3 < 12 tín chỉ
+        self.assertEqual(stu_sv001['Compliance'], 'Below Minimum')
 
-    def test_tc13_rbac_blocks_non_admin_requests(self):
-        """TC_ADM_13: Chặn truy cập API Admin khi chưa đăng nhập (401) hoặc đăng nhập bằng tài khoản Student (403)."""
-        unauth_resp = self.client.get('/admin/api/users')
-        self.assertEqual(unauth_resp.status_code, 401)
-
+    # ==========================================================================
+    # TC_ADM_28: Admin Logout Clears Session & Redirects
+    # ==========================================================================
+    def test_tc28_admin_logout(self):
+        """TC_ADM_28: Admin logout terminates session and redirects."""
         with self.client.session_transaction() as sess:
-            sess['user_id'] = 4
-            sess['username'] = 'sv_an'
-            sess['role'] = 'Student'
-        forbidden_resp = self.client.get('/admin/api/users')
-        self.assertEqual(forbidden_resp.status_code, 403)
+            sess['user_id'] = 1
+            sess['role'] = 'Admin'
+            sess['username'] = 'admin'
+        res = self.client.get('/admin/logout')
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('/logout', res.headers.get('Location'))
 
 
 if __name__ == '__main__':

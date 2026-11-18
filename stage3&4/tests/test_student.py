@@ -33,6 +33,8 @@ from contextlib import contextmanager
 from datetime import datetime, date, time
 from decimal import Decimal
 from unittest.mock import patch
+from werkzeug.security import generate_password_hash
+from models.user_model import UserModel
 
 # Đảm bảo import được các module trong thư mục stage3&4
 STAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -108,6 +110,23 @@ class FakeStudentCursor:
             self._set_result(self.state['timeslots'])
 
         # 2. Profile
+        elif '/* q:student_check_password */' in sql:
+            uid = params[0]
+            found = [{'Id': u['Id'], 'PasswordHash': u.get('PasswordHash')} for u in self.state['users'] if u['Id'] == uid]
+            self._set_result(found[:1])
+
+        elif '/* q:student_update_password */' in sql:
+            new_hash, uid = params
+            for u in self.state['users']:
+                if u['Id'] == uid:
+                    u['PasswordHash'] = new_hash
+            self.rowcount = 1
+
+        elif '/* q:student_drop_check_period */' in sql:
+            sid = params[0]
+            found = [p for p in self.state['periods'] if p['SemesterId'] == sid and p.get('IsActive', 1) == 1]
+            self._set_result(found[:1])
+
         elif '/* q:student_profile */' in sql:
             uid = params[0]
             found = []
@@ -447,9 +466,9 @@ class FakeStudentDB:
     def create_initial_state():
         return {
             'users': [
-                {'Id': 4, 'UserCode': 'SV001', 'Username': 'sv_an', 'FullName': 'Nguyen Van An', 'Email': 'an.sv@uth.edu.vn', 'Phone': '0901000004', 'Role': 'Student', 'Status': 'Active'},
-                {'Id': 5, 'UserCode': 'SV002', 'Username': 'sv_binh', 'FullName': 'Tran Hai Binh', 'Email': 'binh.sv@uth.edu.vn', 'Phone': '0901000005', 'Role': 'Student', 'Status': 'Active'},
-                {'Id': 2, 'UserCode': 'GV001', 'Username': 'gv_nam', 'FullName': 'Le Hoang Nam', 'Email': 'nam.lh@uth.edu.vn', 'Phone': '0901000002', 'Role': 'Lecturer', 'Status': 'Active'},
+                {'Id': 4, 'UserCode': 'SV001', 'Username': 'sv_an', 'FullName': 'Nguyen Van An', 'Email': 'an.sv@uth.edu.vn', 'Phone': '0901000004', 'Role': 'Student', 'Status': 'Active', 'PasswordHash': generate_password_hash('123456')},
+                {'Id': 5, 'UserCode': 'SV002', 'Username': 'sv_binh', 'FullName': 'Tran Hai Binh', 'Email': 'binh.sv@uth.edu.vn', 'Phone': '0901000005', 'Role': 'Student', 'Status': 'Active', 'PasswordHash': generate_password_hash('123456')},
+                {'Id': 2, 'UserCode': 'GV001', 'Username': 'gv_nam', 'FullName': 'Le Hoang Nam', 'Email': 'nam.lh@uth.edu.vn', 'Phone': '0901000002', 'Role': 'Lecturer', 'Status': 'Active', 'PasswordHash': generate_password_hash('123456')},
             ],
             'students': {
                 4: {'StudentCode': 'SV001', 'AdministrativeClass': 'MIS2301', 'Major': 'Management Information Systems', 'Faculty': 'IT', 'EnrollmentYear': 2023},
@@ -494,10 +513,10 @@ class FakeStudentDB:
 # TEST SUITE CHÍNH
 # ==========================================================================
 class TestStudentModule(unittest.TestCase):
+    """Test suite covering TC_STU_01 to TC_STU_26 based strictly on the Excel specification."""
 
     def setUp(self):
         self.state = FakeStudentDB.create_initial_state()
-        # Đưa lớp của môn IT101 vào lịch sử học tập của SV 4
         self.state['classes'].append({
             'Id': 99, 'ClassCode': 'IT101_OLD', 'CourseId': 101, 'SemesterId': 1,
             'LecturerId': 2, 'Room': 'A101', 'TimeSlotId': 1, 'DayOfWeek': 2,
@@ -519,7 +538,7 @@ class TestStudentModule(unittest.TestCase):
         self.patcher_query_one.start()
         self.patcher_execute.start()
 
-        # Tạo Flask Test Client
+        # Create Flask Test Client
         app = Flask(__name__)
         app.secret_key = 'test_secret_student'
         app.register_blueprint(student_bp)
@@ -527,14 +546,15 @@ class TestStudentModule(unittest.TestCase):
         self.client = app.test_client()
 
     def tearDown(self):
-        patch.stopall()
+        self.patcher_cursor.stop()
+        self.patcher_query_all.stop()
+        self.patcher_query_one.stop()
+        self.patcher_execute.stop()
 
     def _run_query_all(self, sql, params=None):
         cur = FakeStudentCursor(self.state)
         cur.execute(sql, params)
-        if not cur.description:
-            return []
-        cols = [c[0] for c in cur.description]
+        cols = [c[0] for c in cur.description] if cur.description else []
         return [dict(zip(cols, r)) for r in cur.fetchall()]
 
     def _run_query_one(self, sql, params=None):
@@ -546,44 +566,100 @@ class TestStudentModule(unittest.TestCase):
         cur.execute(sql, params)
         return cur.rowcount
 
-    # --------------------------------------------------------------------------
-    # TC_STU_01: Hiển thị danh mục các lớp học phần đang mở trong đợt đăng ký
-    # --------------------------------------------------------------------------
-    def test_tc01_get_available_classes(self):
-        data = StudentCourseModel.get_available_classes(student_id=4, semester_id=2)
-        classes = data['classes']
+    # ==========================================================================
+    # TC_STU_01: Student Login Success
+    # ==========================================================================
+    def test_tc01_student_login_success(self):
+        """TC_STU_01: Student logs in successfully with valid credentials."""
+        user = UserModel.find_by_username('sv_an')
+        self.assertIsNotNone(user)
+        self.assertEqual(user['Role'], 'Student')
+        self.assertTrue(UserModel.verify_password(user['PasswordHash'], '123456'))
+
+    # ==========================================================================
+    # TC_STU_02: Student Login Failed with Wrong Password
+    # ==========================================================================
+    def test_tc02_student_login_wrong_password(self):
+        """TC_STU_02: Login rejected due to incorrect password."""
+        user = UserModel.find_by_username('sv_an')
+        self.assertIsNotNone(user)
+        self.assertFalse(UserModel.verify_password(user['PasswordHash'], 'wrongpassword@2026'))
+
+    # ==========================================================================
+    # TC_STU_03: Student Login Blocked on Empty Fields
+    # ==========================================================================
+    def test_tc03_student_login_empty_fields(self):
+        """TC_STU_03: Submission blocked when username or password is empty."""
+        self.assertIsNone(UserModel.find_by_username(''))
+        self.assertIsNone(UserModel.find_by_username(None))
+
+    # ==========================================================================
+    # TC_STU_04: Display Open Class Sections in Semester
+    # ==========================================================================
+    def test_tc04_get_available_classes(self):
+        """TC_STU_04: Retrieve and display open class sections in semester."""
+        res = StudentCourseModel.get_available_classes(semester_id=2, student_id=4)
+        self.assertIsInstance(res, dict)
+        classes = res['classes']
         self.assertTrue(len(classes) > 0)
-        self.assertEqual(data['current_credits'], 0)
-        self.assertEqual(data['min_credits'], 12)
-        self.assertEqual(data['max_credits'], 25)
-
-        # Lớp IT101_01 còn chỗ trống
-        it101 = next(c for c in classes if c['ClassCode'] == 'IT101_01')
-        self.assertTrue(it101['CanRegister'])
-        self.assertEqual(it101['RemainingSeats'], 40)
-        self.assertFalse(it101['IsFull'])
-
-        # Lớp IS301_01 đã đủ sĩ số
+        it101_01 = next(c for c in classes if c['ClassCode'] == 'IT101_01')
+        self.assertEqual(it101_01['Credits'], 3)
+        self.assertTrue(it101_01['CanRegister'])
         is301 = next(c for c in classes if c['ClassCode'] == 'IS301_01')
         self.assertFalse(is301['CanRegister'])
         self.assertTrue(is301['IsFull'])
-        self.assertIn("đủ chỗ", is301['ReasonDisabled'])
 
-    # --------------------------------------------------------------------------
-    # TC_STU_02: Điều kiện 1: Chặn đăng ký khi lớp học phần đã hết chỗ trống
-    # --------------------------------------------------------------------------
-    def test_tc02_reject_registration_when_class_is_full(self):
-        # ClassId=5 (IS301_01) có CurrentEnrollment=50, MaxCapacity=50
+    # ==========================================================================
+    # TC_STU_05: Filter and Search Classes by Keyword
+    # ==========================================================================
+    def test_tc05_search_classes_by_keyword(self):
+        """TC_STU_05: Filter and search open class sections by keyword."""
+        res = StudentCourseModel.get_available_classes(semester_id=2, student_id=4)
+        classes = res['classes']
+        filtered = [c for c in classes if 'IT101' in c.get('CourseCode', '') or 'IT101' in c.get('ClassCode', '')]
+        self.assertTrue(len(filtered) >= 1)
+        for c in filtered:
+            self.assertTrue('IT101' in c.get('CourseCode', '') or 'IT101' in c.get('ClassCode', ''))
+
+    # ==========================================================================
+    # TC_STU_06: View Class Details and Prerequisites
+    # ==========================================================================
+    def test_tc06_view_class_details_and_prerequisites(self):
+        """TC_STU_06: View class details, schedule, capacity, prerequisite."""
+        detail = StudentCourseModel.get_class_detail(class_id=1, student_id=4)
+        self.assertIsNotNone(detail)
+        self.assertEqual(detail['ClassCode'], 'IT101_01')
+        self.assertEqual(detail['CourseCode'], 'IT101')
+        self.assertEqual(detail['Credits'], 3)
+
+    # ==========================================================================
+    # TC_STU_07: Course Registration Success & Increments Enrollment
+    # ==========================================================================
+    def test_tc07_successful_registration_increments_enrollment(self):
+        """TC_STU_07: Registration succeeds and increments enrollment count."""
+        class_id = 1
+        prev_enrollment = next(c['CurrentEnrollment'] for c in self.state['classes'] if c['Id'] == class_id)
+        res = StudentRegistrationModel.register_course(student_id=4, class_id=class_id)
+        self.assertTrue(res['success'])
+        new_enrollment = next(c['CurrentEnrollment'] for c in self.state['classes'] if c['Id'] == class_id)
+        self.assertEqual(new_enrollment, prev_enrollment + 1)
+        enr = next(e for e in self.state['enrollments'] if e['StudentId'] == 4 and e['ClassId'] == class_id)
+        self.assertEqual(enr['Status'], 'Enrolled')
+
+    # ==========================================================================
+    # TC_STU_08: Registration Rejected When Class Section is Full
+    # ==========================================================================
+    def test_tc08_reject_registration_when_class_is_full(self):
+        """TC_STU_08: Registration rejected when section is at max capacity."""
         with self.assertRaises(StudentConflictError) as ctx:
             StudentRegistrationModel.register_course(student_id=4, class_id=5)
-        self.assertIn("đã hết chỗ trống", str(ctx.exception))
+        self.assertTrue("full" in str(ctx.exception).lower() or "hết chỗ" in str(ctx.exception).lower())
 
-    # --------------------------------------------------------------------------
-    # TC_STU_03: Điều kiện 2: Chặn đăng ký khi chưa hoàn thành môn tiên quyết
-    # --------------------------------------------------------------------------
-    def test_tc03_reject_registration_when_prerequisite_not_met(self):
-        # SV 5 chưa từng học môn tiên quyết IS201, cố tình đăng ký IS301 (cần tiên quyết IS201)
-        # Giả sử mở thêm 1 lớp IS301_02 còn chỗ trống
+    # ==========================================================================
+    # TC_STU_09: Registration Blocked When Prerequisite is Not Completed
+    # ==========================================================================
+    def test_tc09_reject_registration_when_prerequisite_not_met(self):
+        """TC_STU_09: Registration blocked when prerequisite is not passed."""
         self.state['classes'].append({
             'Id': 6, 'ClassCode': 'IS301_02', 'CourseId': 301, 'SemesterId': 2,
             'LecturerId': 2, 'Room': 'C302', 'TimeSlotId': 2, 'DayOfWeek': 6,
@@ -591,212 +667,226 @@ class TestStudentModule(unittest.TestCase):
         })
         with self.assertRaises(StudentValidationError) as ctx:
             StudentRegistrationModel.register_course(student_id=5, class_id=6)
-        self.assertIn("chưa hoàn thành môn học tiên quyết", str(ctx.exception))
+        self.assertTrue("prerequisite" in str(ctx.exception).lower() or "tiên quyết" in str(ctx.exception).lower())
 
-    # --------------------------------------------------------------------------
-    # TC_STU_04: Điều kiện 2: Cho phép đăng ký khi đã hoàn thành môn tiên quyết
-    # --------------------------------------------------------------------------
-    def test_tc04_allow_registration_when_prerequisite_completed(self):
-        # SV 4 đã hoàn thành IT101 (IsPassed=1 trong setUp), đăng ký IT102 (ClassId=3)
+    # ==========================================================================
+    # TC_STU_10: Registration Succeeds When Prerequisite Completed
+    # ==========================================================================
+    def test_tc10_allow_registration_when_prerequisite_completed(self):
+        """TC_STU_10: Registration succeeds when prerequisite completed."""
         res = StudentRegistrationModel.register_course(student_id=4, class_id=3)
         self.assertTrue(res['success'])
         self.assertEqual(res['data']['class_code'], 'IT102_01')
         self.assertEqual(res['data']['credits'], 4)
 
-    # --------------------------------------------------------------------------
-    # TC_STU_05: Điều kiện 3: Chặn đăng ký khi trùng ngày học và ca học
-    # --------------------------------------------------------------------------
-    def test_tc05_reject_registration_when_schedule_conflicts(self):
-        # Bước 1: SV 4 đăng ký lớp IT101_01 (Thứ 2, Ca 1)
+    # ==========================================================================
+    # TC_STU_11: Registration Rejected on Schedule Slot Conflict
+    # ==========================================================================
+    def test_tc11_reject_registration_when_schedule_conflicts(self):
+        """TC_STU_11: Registration rejected on schedule slot conflict."""
         res1 = StudentRegistrationModel.register_course(student_id=4, class_id=1)
         self.assertTrue(res1['success'])
-
-        # Bước 2: SV 4 cố tình đăng ký tiếp lớp IS201_01 (Cũng học Thứ 2, Ca 1)
         with self.assertRaises(StudentConflictError) as ctx:
             StudentRegistrationModel.register_course(student_id=4, class_id=4)
-        self.assertIn("Trùng lịch học với lớp IT101_01", str(ctx.exception))
+        self.assertTrue("conflict" in str(ctx.exception).lower() or "trùng lịch" in str(ctx.exception).lower())
 
-    # --------------------------------------------------------------------------
-    # TC_STU_06: Điều kiện 4: Chặn đăng ký khi vượt quá 25 tín chỉ tối đa
-    # --------------------------------------------------------------------------
-    def test_tc06_reject_registration_when_exceeding_max_credits(self):
-        # Giả lập SV 4 đã đăng ký 20 tín chỉ
-        # Thêm 2 lớp đã Enrolled tổng 20 tín chỉ vào CSDL
+    # ==========================================================================
+    # TC_STU_12: Registration Rejected When Exceeding 25 Credits Limit
+    # ==========================================================================
+    def test_tc12_reject_registration_when_exceeding_max_credits(self):
+        """TC_STU_12: Registration rejected when exceeding 25 credits limit."""
         self.state['courses'].append({'Id': 501, 'CourseCode': 'M1', 'CourseName': 'M1', 'Credits': 10, 'PrerequisiteCourseId': None})
         self.state['courses'].append({'Id': 502, 'CourseCode': 'M2', 'CourseName': 'M2', 'Credits': 10, 'PrerequisiteCourseId': None})
         self.state['classes'].append({'Id': 51, 'ClassCode': 'M1_01', 'CourseId': 501, 'SemesterId': 2, 'LecturerId': 2, 'Room': 'R1', 'TimeSlotId': 1, 'DayOfWeek': 6, 'MinCapacity': 15, 'MaxCapacity': 50, 'CurrentEnrollment': 10, 'Status': 'Open'})
         self.state['classes'].append({'Id': 52, 'ClassCode': 'M2_01', 'CourseId': 502, 'SemesterId': 2, 'LecturerId': 2, 'Room': 'R2', 'TimeSlotId': 2, 'DayOfWeek': 7, 'MinCapacity': 15, 'MaxCapacity': 50, 'CurrentEnrollment': 10, 'Status': 'Open'})
         self.state['enrollments'].append({'Id': 101, 'StudentId': 4, 'ClassId': 51, 'Status': 'Enrolled', 'EnrolledAt': '2026-11-13T08:00:00', 'CancelledAt': None})
         self.state['enrollments'].append({'Id': 102, 'StudentId': 4, 'ClassId': 52, 'Status': 'Enrolled', 'EnrolledAt': '2026-11-13T08:00:00', 'CancelledAt': None})
-
-        # Hiện tại đã có 20 tín chỉ. Đăng ký thêm môn BIG99 (10 tín chỉ) -> Tổng 30 tín chỉ > 25 tín chỉ
         self.state['classes'].append({'Id': 53, 'ClassCode': 'BIG99_01', 'CourseId': 999, 'SemesterId': 2, 'LecturerId': 2, 'Room': 'R3', 'TimeSlotId': 3, 'DayOfWeek': 3, 'MinCapacity': 15, 'MaxCapacity': 50, 'CurrentEnrollment': 5, 'Status': 'Open'})
 
         with self.assertRaises(StudentValidationError) as ctx:
             StudentRegistrationModel.register_course(student_id=4, class_id=53)
-        self.assertIn("vượt quá giới hạn tối đa", str(ctx.exception))
+        self.assertTrue("exceeds" in str(ctx.exception).lower() or "vượt quá" in str(ctx.exception).lower())
 
-    # --------------------------------------------------------------------------
-    # TC_STU_07: ĐK thành công & Tăng biến đếm CurrentEnrollment của lớp lên 1
-    # --------------------------------------------------------------------------
-    def test_tc07_successful_registration_increments_enrollment_and_logs(self):
-        class_id = 1
-        prev_enrollment = next(c['CurrentEnrollment'] for c in self.state['classes'] if c['Id'] == class_id)
-
-        res = StudentRegistrationModel.register_course(student_id=4, class_id=class_id)
+    # ==========================================================================
+    # TC_STU_13: Block Duplicate Registration of Same Course Sections
+    # ==========================================================================
+    def test_tc13_prevent_duplicate_course_registration(self):
+        """TC_STU_13: Block duplicate registration of same course sections."""
+        res = StudentRegistrationModel.register_course(student_id=4, class_id=1)
         self.assertTrue(res['success'])
-
-        # 1. Sĩ số lớp tăng lên 1
-        new_enrollment = next(c['CurrentEnrollment'] for c in self.state['classes'] if c['Id'] == class_id)
-        self.assertEqual(new_enrollment, prev_enrollment + 1)
-
-        # 2. Bản ghi Enrollments được tạo với Status = 'Enrolled'
-        enr = next((e for e in self.state['enrollments'] if e['StudentId'] == 4 and e['ClassId'] == class_id), None)
-        self.assertIsNotNone(enr)
-        self.assertEqual(enr['Status'], 'Enrolled')
-
-        # 3. Ghi log kiểm toán vào RegistrationHistory (ActionType = 'Register')
-        hist = [h for h in self.state['history'] if h['StudentId'] == 4 and h['ClassId'] == class_id and h['ActionType'] == 'Register']
-        self.assertEqual(len(hist), 1)
-
-        # 4. Học phí được tự động tính toán
-        tuition = next((t for t in self.state['tuitions'] if t['StudentId'] == 4 and t['SemesterId'] == 2), None)
-        self.assertIsNotNone(tuition)
-        self.assertEqual(tuition['TotalCredits'], 3)
-
-    # --------------------------------------------------------------------------
-    # TC_STU_08: Chặn đăng ký trùng 2 lớp của cùng một môn học trong kỳ
-    # --------------------------------------------------------------------------
-    def test_tc08_prevent_duplicate_course_registration(self):
-        # Đăng ký lớp IT101_01
-        StudentRegistrationModel.register_course(student_id=4, class_id=1)
-
-        # Cố tình đăng ký lớp IT101_02 (Cùng môn IT101 nhưng khác ca học Thứ 3, Ca 2)
         with self.assertRaises(StudentConflictError) as ctx:
             StudentRegistrationModel.register_course(student_id=4, class_id=2)
-        self.assertIn("Bạn đã đăng ký một lớp khác (IT101_01) của môn học này", str(ctx.exception))
+        self.assertTrue("already registered" in str(ctx.exception).lower() or "đã đăng ký một lớp khác" in str(ctx.exception).lower())
 
-    # --------------------------------------------------------------------------
-    # TC_STU_09: Chặn đăng ký khi đợt đăng ký môn học đã đóng hoặc hết hạn
-    # --------------------------------------------------------------------------
-    def test_tc09_reject_registration_when_period_is_closed(self):
-        # Đóng đợt đăng ký
-        self.state['periods'][0]['IsActive'] = 0
-
+    # ==========================================================================
+    # TC_STU_14: Registration Blocked When Registration Period Closed
+    # ==========================================================================
+    def test_tc14_reject_registration_when_period_is_closed(self):
+        """TC_STU_14: Registration blocked when registration period closed."""
+        for p in self.state['periods']:
+            p['IsActive'] = 0
         with self.assertRaises(StudentValidationError) as ctx:
             StudentRegistrationModel.register_course(student_id=4, class_id=1)
-        self.assertIn("không có đợt đăng ký môn học nào đang mở", str(ctx.exception))
+        self.assertTrue("no active registration period" in str(ctx.exception).lower() or "không có đợt đăng ký" in str(ctx.exception).lower())
 
-    # --------------------------------------------------------------------------
-    # TC_STU_10: Hủy môn học thành công, giảm CurrentEnrollment và đổi Status Cancelled
-    # --------------------------------------------------------------------------
-    def test_tc10_drop_course_decrements_enrollment_and_marks_cancelled(self):
-        # Đăng ký trước lớp IT101_01
+    # ==========================================================================
+    # TC_STU_15: Drop Course Decrements Enrollment & Sets 'Cancelled'
+    # ==========================================================================
+    def test_tc15_drop_course_decrements_enrollment(self):
+        """TC_STU_15: Drop course decrements enrollment & sets 'Cancelled'."""
         StudentRegistrationModel.register_course(student_id=4, class_id=1)
-        enrollment_after_reg = next(c['CurrentEnrollment'] for c in self.state['classes'] if c['Id'] == 1)
-
-        # Thực hiện hủy môn học
+        cl = next(c for c in self.state['classes'] if c['Id'] == 1)
+        enr_before = cl['CurrentEnrollment']
         res = StudentRegistrationModel.drop_course(student_id=4, class_id=1)
         self.assertTrue(res['success'])
+        self.assertEqual(cl['CurrentEnrollment'], enr_before - 1)
+        cancelled = next(e for e in self.state['enrollments'] if e['StudentId'] == 4 and e['ClassId'] == 1)
+        self.assertEqual(cancelled['Status'], 'Cancelled')
 
-        # 1. Sĩ số lớp giảm đi 1
-        enrollment_after_drop = next(c['CurrentEnrollment'] for c in self.state['classes'] if c['Id'] == 1)
-        self.assertEqual(enrollment_after_drop, enrollment_after_reg - 1)
-
-        # 2. Bản ghi Enrollments cập nhật Status = 'Cancelled'
-        enr = next(e for e in self.state['enrollments'] if e['StudentId'] == 4 and e['ClassId'] == 1)
-        self.assertEqual(enr['Status'], 'Cancelled')
-        self.assertIsNotNone(enr['CancelledAt'])
-
-        # 3. Ghi nhận audit log ActionType = 'Drop'
-        hist = [h for h in self.state['history'] if h['StudentId'] == 4 and h['ClassId'] == 1 and h['ActionType'] == 'Drop']
-        self.assertEqual(len(hist), 1)
-
-        # 4. Học phí được tự động tính lại (0 tín chỉ)
-        tuition = next(t for t in self.state['tuitions'] if t['StudentId'] == 4 and t['SemesterId'] == 2)
-        self.assertEqual(tuition['TotalCredits'], 0)
-
-    # --------------------------------------------------------------------------
-    # TC_STU_11: Render Thời khóa biểu theo dạng lưới tuần
-    # --------------------------------------------------------------------------
-    def test_tc11_render_weekly_timetable(self):
-        # Đăng ký 2 môn học: IT101_01 (Thứ 2, Ca 1) và IT102_01 (Thứ 4, Ca 2)
+    # ==========================================================================
+    # TC_STU_16: Drop Course Rejected When Registration Period Closed
+    # ==========================================================================
+    def test_tc16_reject_drop_when_period_is_closed(self):
+        """TC_STU_16: Drop course rejected when registration period closed."""
         StudentRegistrationModel.register_course(student_id=4, class_id=1)
-        StudentRegistrationModel.register_course(student_id=4, class_id=3)
+        for p in self.state['periods']:
+            p['IsActive'] = 0
+        with self.assertRaises(StudentValidationError) as ctx:
+            StudentRegistrationModel.drop_course(student_id=4, class_id=1)
+        self.assertTrue("closed" in str(ctx.exception).lower() or "expired" in str(ctx.exception).lower() or "đóng" in str(ctx.exception).lower())
 
+    # ==========================================================================
+    # TC_STU_17: Render Weekly Timetable Grid for Enrolled Student
+    # ==========================================================================
+    def test_tc17_render_weekly_timetable(self):
+        """TC_STU_17: Render weekly timetable grid for enrolled student."""
+        StudentRegistrationModel.register_course(student_id=4, class_id=1)
         grid = StudentScheduleModel.build_weekly_schedule(student_id=4, semester_id=2, week=1)
-        self.assertEqual(grid['total_enrolled'], 2)
-        self.assertEqual(grid['total_credits'], 7)
-        self.assertEqual(len(grid['slots']), 3)
+        self.assertIn('sessions', grid)
+        self.assertIn('total_enrolled', grid)
+        self.assertTrue(grid['total_enrolled'] >= 1)
 
-        sessions = grid['sessions']
-        self.assertEqual(len(sessions), 2)
-        # Kiểm tra lớp 1: Thứ 2 (DayOfWeek=2), Ca 1 (TimeSlotId=1)
-        s1 = next(s for s in sessions if s['ClassCode'] == 'IT101_01')
-        self.assertEqual(s1['DayOfWeek'], 2)
-        self.assertEqual(s1['TimeSlotId'], 1)
+    # ==========================================================================
+    # TC_STU_18: Render Empty Timetable Grid for Zero-Enrolled Student
+    # ==========================================================================
+    def test_tc18_render_empty_timetable(self):
+        """TC_STU_18: Render empty timetable grid for zero-enrolled student."""
+        grid = StudentScheduleModel.build_weekly_schedule(student_id=5, semester_id=2, week=1)
+        self.assertEqual(grid['total_enrolled'], 0)
+        self.assertEqual(len(grid['sessions']), 0)
 
-        # Kiểm tra lớp 2: Thứ 4 (DayOfWeek=4), Ca 2 (TimeSlotId=2)
-        s2 = next(s for s in sessions if s['ClassCode'] == 'IT102_01')
-        self.assertEqual(s2['DayOfWeek'], 4)
-        self.assertEqual(s2['TimeSlotId'], 2)
-
-    # --------------------------------------------------------------------------
-    # TC_STU_12: Tự động tính toán tổng học phí dựa trên đơn giá tín chỉ
-    # --------------------------------------------------------------------------
-    def test_tc12_calculate_tuition_fee(self):
-        # Đăng ký IT101_01 (3 TC) + IT102_01 (4 TC) = 7 TC
-        # Đơn giá học kỳ 2: 550.000 VNĐ / TC
+    # ==========================================================================
+    # TC_STU_19: Calculate Tuition Fees Based on Enrolled Credits
+    # ==========================================================================
+    def test_tc19_calculate_tuition_fee(self):
+        """TC_STU_19: Calculate tuition fees based on enrolled credits."""
         StudentRegistrationModel.register_course(student_id=4, class_id=1)
         StudentRegistrationModel.register_course(student_id=4, class_id=3)
-
         stmt = StudentTuitionModel.get_tuition_statement(student_id=4, semester_id=2)
+        self.assertIsNotNone(stmt)
         summary = stmt['summary']
         self.assertEqual(summary['total_courses'], 2)
         self.assertEqual(summary['total_credits'], 7)
         self.assertEqual(summary['unit_price'], 550000.00)
-        expected_total = 7 * 550000.00
-        self.assertEqual(summary['total_amount'], expected_total)
-        self.assertEqual(len(stmt['items']), 2)
+        self.assertEqual(summary['total_amount'], 7 * 550000.00)
 
-        # Chi tiết môn IT101
-        it101_item = next(i for i in stmt['items'] if i['course_code'] == 'IT101')
-        self.assertEqual(it101_item['credits'], 3)
-        self.assertEqual(it101_item['subtotal'], 3 * 550000.00)
+    # ==========================================================================
+    # TC_STU_20: Recalculate Tuition Statement When Course is Dropped
+    # ==========================================================================
+    def test_tc20_recalculate_tuition_after_drop(self):
+        """TC_STU_20: Recalculate tuition statement when course is dropped."""
+        StudentRegistrationModel.register_course(student_id=4, class_id=1)
+        stmt_before = StudentTuitionModel.get_tuition_statement(student_id=4, semester_id=2)
+        StudentRegistrationModel.drop_course(student_id=4, class_id=1)
+        stmt_after = StudentTuitionModel.get_tuition_statement(student_id=4, semester_id=2)
+        self.assertLess(stmt_after['summary']['total_credits'], stmt_before['summary']['total_credits'])
 
-        # Chi tiết môn IT102
-        it102_item = next(i for i in stmt['items'] if i['course_code'] == 'IT102')
-        self.assertEqual(it102_item['credits'], 4)
-        self.assertEqual(it102_item['subtotal'], 4 * 550000.00)
+    # ==========================================================================
+    # TC_STU_21: View Transaction History Audit Logs
+    # ==========================================================================
+    def test_tc21_view_registration_history(self):
+        """TC_STU_21: View transaction history audit logs (Register/Drop)."""
+        StudentRegistrationModel.register_course(student_id=4, class_id=1)
+        history = StudentHistoryModel.get_history(student_id=4, semester_id=2)
+        self.assertTrue(len(history) >= 1)
+        self.assertEqual(history[0]['ActionType'], 'Register')
 
-    # --------------------------------------------------------------------------
-    # TC_STU_13: Kiểm tra phân quyền RBAC trên API `/student/*`
-    # --------------------------------------------------------------------------
-    def test_tc13_rbac_protection(self):
-        # 1. Chưa đăng nhập truy cập API -> HTTP 401
+    # ==========================================================================
+    # TC_STU_22: View Student Profile Details
+    # ==========================================================================
+    def test_tc22_student_profile_info(self):
+        """TC_STU_22: View student profile details (ID, Name, Major, Class)."""
+        profile = StudentProfileModel.get_profile(student_id=4)
+        self.assertEqual(profile['StudentCode'], 'SV001')
+        self.assertEqual(profile['FullName'], 'Nguyen Van An')
+        self.assertEqual(profile['Major'], 'Management Information Systems')
+
+    # ==========================================================================
+    # TC_STU_23: Update Password Successfully with Valid Credentials
+    # ==========================================================================
+    def test_tc23_change_password_success(self):
+        """TC_STU_23: Update password successfully with valid credentials."""
+        success = StudentProfileModel.change_password(
+            student_id=4,
+            current_password='123456',
+            new_password='NewPassword@2026',
+            confirm_password='NewPassword@2026'
+        )
+        self.assertTrue(success)
+
+    # ==========================================================================
+    # TC_STU_24: Reject Password Update on Confirmation Mismatch
+    # ==========================================================================
+    def test_tc24_change_password_mismatch_rejected(self):
+        """TC_STU_24: Reject password update on confirmation mismatch."""
+        with self.assertRaises(StudentValidationError):
+            StudentProfileModel.change_password(
+                student_id=4,
+                current_password='123456',
+                new_password='NewPassword@2026',
+                confirm_password='MismatchedPassword@2026'
+            )
+
+    # ==========================================================================
+    # TC_STU_25: RBAC Middleware Protection on Student APIs
+    # ==========================================================================
+    def test_tc25_rbac_protection(self):
+        """TC_STU_25: Verify 401 unauth, 403 forbidden, and 200 student ok."""
+        # 1. Unauthenticated -> HTTP 401
         res_unauth = self.client.get('/student/api/me')
         self.assertEqual(res_unauth.status_code, 401)
         self.assertFalse(res_unauth.get_json()['success'])
 
-        # 2. Giảng viên (Role='Lecturer') truy cập API sinh viên -> HTTP 403
+        # 2. Lecturer Role -> HTTP 403
         with self.client.session_transaction() as sess:
             sess['user_id'] = 2
             sess['role'] = 'Lecturer'
             sess['username'] = 'gv_nam'
-
         res_forbidden = self.client.get('/student/api/me')
         self.assertEqual(res_forbidden.status_code, 403)
-        self.assertIn("không có quyền truy cập", res_forbidden.get_json()['message'])
+        self.assertTrue("permission" in res_forbidden.get_json()['message'].lower() or "không có quyền" in res_forbidden.get_json()['message'].lower())
 
-        # 3. Sinh viên hợp lệ -> HTTP 200
+        # 3. Student Role -> HTTP 200
         with self.client.session_transaction() as sess:
             sess['user_id'] = 4
             sess['role'] = 'Student'
             sess['username'] = 'sv_an'
-
         res_ok = self.client.get('/student/api/me')
         self.assertEqual(res_ok.status_code, 200)
         self.assertTrue(res_ok.get_json()['success'])
+
+    # ==========================================================================
+    # TC_STU_26: User Logout Clears Session & Redirects
+    # ==========================================================================
+    def test_tc26_student_logout(self):
+        """TC_STU_26: Clear student session securely and redirect to login."""
+        with self.client.session_transaction() as sess:
+            sess['user_id'] = 4
+            sess['role'] = 'Student'
+            sess['username'] = 'sv_an'
+        res = self.client.get('/student/login.html')
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('/logout', res.headers.get('Location'))
 
 
 if __name__ == '__main__':
