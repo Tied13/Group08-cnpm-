@@ -241,6 +241,25 @@ async function loadSemesterOptions(selectId) {
 /** Hien thi ten admin dang dang nhap tren chip goc phai. */
 async function loadAdminIdentity() {
   const chip = document.querySelector('.user-profile-chip');
+  if (chip) {
+    chip.style.cursor = 'pointer';
+    chip.title = 'Click to change your admin password';
+    chip.onclick = openAdminPasswordModal;
+  }
+
+  // Tự động gắn nút Đổi mật khẩu vào sidebar footer nếu chưa có
+  const sf = document.querySelector('.sidebar-footer');
+  if (sf && !$id('btn-admin-change-pw')) {
+    const btn = document.createElement('button');
+    btn.id = 'btn-admin-change-pw';
+    btn.type = 'button';
+    btn.className = 'btn btn-primary-soft btn-block';
+    btn.style.cssText = 'margin-bottom: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;';
+    btn.innerHTML = '<span>🔑</span> Change Password';
+    btn.onclick = openAdminPasswordModal;
+    sf.insertBefore(btn, sf.firstChild);
+  }
+
   if (!chip) return;
   try {
     const { data } = await adminApi('/me');
@@ -978,7 +997,109 @@ function renderStudentReport() {
 }
 
 /* ==========================================================================
-   7. KHOI TAO - tu nhan dien trang dang mo
+   7. DOI MAT KHAU ADMIN (MODAL & API)
+   ========================================================================== */
+function ensureAdminPasswordModal() {
+  let modal = $id('admin-pw-modal');
+  if (modal) return modal;
+  modal = document.createElement('div');
+  modal.id = 'admin-pw-modal';
+  modal.className = 'modal-overlay hidden';
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width: 440px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Change Admin Password</h3>
+        <button type="button" onclick="closeAdminPasswordModal()" style="background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+      </div>
+      <div id="admin-pw-feedback" class="toast-banner hidden" style="margin-bottom: 16px;"></div>
+      <form onsubmit="handleAdminChangePassword(event)">
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="admin-cur-pw" style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem;">Current Password</label>
+          <input type="password" id="admin-cur-pw" placeholder="Enter current admin password" required style="width: 100%; box-sizing: border-box;" />
+        </div>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="admin-new-pw" style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem;">New Password</label>
+          <input type="password" id="admin-new-pw" placeholder="Enter new password (at least 6 chars)" minlength="6" required style="width: 100%; box-sizing: border-box;" />
+        </div>
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label for="admin-cfm-pw" style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem;">Confirm New Password</label>
+          <input type="password" id="admin-cfm-pw" placeholder="Re-enter new password" minlength="6" required style="width: 100%; box-sizing: border-box;" />
+        </div>
+        <div class="modal-actions" style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="button" class="btn btn-soft" onclick="closeAdminPasswordModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-admin-pw">Save New Password</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function openAdminPasswordModal() {
+  const modal = ensureAdminPasswordModal();
+  modal.classList.remove('hidden');
+  const cur = $id('admin-cur-pw');
+  if (cur) {
+    cur.value = '';
+    setTimeout(() => cur.focus(), 100);
+  }
+  const n = $id('admin-new-pw'); if (n) n.value = '';
+  const c = $id('admin-cfm-pw'); if (c) c.value = '';
+  const fb = $id('admin-pw-feedback'); if (fb) fb.classList.add('hidden');
+}
+
+function closeAdminPasswordModal() {
+  const modal = $id('admin-pw-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function handleAdminChangePassword(event) {
+  event.preventDefault();
+  const cur = $id('admin-cur-pw')?.value || '';
+  const next = $id('admin-new-pw')?.value || '';
+  const confirm = $id('admin-cfm-pw')?.value || '';
+  const fb = $id('admin-pw-feedback');
+
+  function showFb(msg, type) {
+    if (fb) {
+      fb.className = `toast-banner toast-${type}`;
+      fb.textContent = msg;
+      fb.classList.remove('hidden');
+    }
+  }
+
+  if (next.length < 6) {
+    showFb('New password must be at least 6 characters.', 'danger');
+    return;
+  }
+  if (next !== confirm) {
+    showFb('Password confirmation does not match.', 'danger');
+    return;
+  }
+
+  const submitBtn = $id('btn-submit-admin-pw');
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    const res = await adminApi('/change-password', {
+      method: 'POST',
+      body: { current_password: cur, new_password: next, confirm_password: confirm },
+    });
+    showFb(res.message || 'Password changed successfully!', 'success');
+    if ($id('user-toast')) showAdminToast('user-toast', res.message || 'Admin password changed successfully!', 'success');
+    setTimeout(() => {
+      closeAdminPasswordModal();
+    }, 1200);
+  } catch (err) {
+    showFb(err.message || 'Failed to change password.', 'danger');
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+/* ==========================================================================
+   8. KHOI TAO - tu nhan dien trang dang mo
    ========================================================================== */
 document.addEventListener('DOMContentLoaded', () => {
   loadAdminIdentity();
@@ -995,5 +1116,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (event.target.id === 'edit-user-modal') closeEditUser();
     if (event.target.id === 'edit-course-modal') closeEditCourse();
     if (event.target.id === 'cancel-sec-modal') closeCancelSectionModal();
+    if (event.target.id === 'admin-pw-modal') closeAdminPasswordModal();
   });
 });

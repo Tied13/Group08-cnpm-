@@ -46,13 +46,13 @@ import sys
 import unittest
 from contextlib import contextmanager
 from unittest.mock import patch
-from werkzeug.security import generate_password_hash
-from models.user_model import UserModel
-
 # Đảm bảo import được các module trong thư mục stage3&4
 STAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if STAGE_DIR not in sys.path:
     sys.path.insert(0, STAGE_DIR)
+
+from werkzeug.security import generate_password_hash
+from models.user_model import UserModel
 
 from flask import Flask
 from controllers.admin_controller import admin_bp

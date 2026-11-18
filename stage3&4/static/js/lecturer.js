@@ -482,9 +482,9 @@ function lecFillProfile(me) {
 
 async function handleLecturerPassword(event) {
   event.preventDefault();
-  const current = lecEl('cur-pw').value;
-  const next = lecEl('new-pw').value;
-  const confirm = lecEl('cfm-pw').value;
+  const current = (lecEl('cur-pw') || lecEl('current-password'))?.value || '';
+  const next = (lecEl('new-pw') || lecEl('new-password'))?.value || '';
+  const confirm = (lecEl('cfm-pw') || lecEl('confirm-password'))?.value || '';
   if (next !== confirm) {
     lecBanner('pw-toast', 'Mật khẩu xác nhận không khớp.', 'danger');
     return;

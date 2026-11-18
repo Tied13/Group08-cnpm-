@@ -79,6 +79,24 @@ class UserModel:
         return None
 
     @staticmethod
+    def find_by_id(user_id):
+        """Tim nguoi dung theo ID khoa chinh."""
+        if not user_id:
+            return None
+        sql = "SELECT * FROM dbo.Users WHERE Id = ?"
+        return Database.query_one(sql, (user_id,))
+
+    @staticmethod
+    def update_password(user_id, new_password):
+        """Cap nhat mat khau moi (tu dong bam bang werkzeug scrypt/pbkdf2)."""
+        if not str(new_password).startswith(('scrypt:', 'pbkdf2:')):
+            pw_hash = generate_password_hash(new_password)
+        else:
+            pw_hash = new_password
+        sql = "UPDATE dbo.Users SET PasswordHash = ?, FailedLoginCount = 0, UpdatedAt = SYSDATETIME() WHERE Id = ?"
+        return Database.execute(sql, (pw_hash, user_id))
+
+    @staticmethod
     def verify_password(stored_password, provided_password):
         """
         Kiem tra mat khau hop le.
@@ -90,14 +108,10 @@ class UserModel:
 
         clean_pwd = str(provided_password).strip()
 
-        # 1. Mat khau mac dinh chuan '123456' luon luon hop le
-        if clean_pwd in ('123456', 'admin', 'Password123', '12345678'):
-            return True
-
         if not stored_password:
             return False
 
-        # 2. Kiem tra theo chuan Werkzeug (scrypt / pbkdf2)
+        # 1. Kiem tra theo chuan Werkzeug (scrypt / pbkdf2)
         try:
             if check_password_hash(stored_password, clean_pwd):
                 return True

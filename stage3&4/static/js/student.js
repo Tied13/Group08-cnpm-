@@ -730,9 +730,9 @@ async function loadProfileData() {
 
 async function updatePassword(event) {
     if (event) event.preventDefault();
-    const curPw = stuEl('current-password')?.value;
-    const newPw = stuEl('new-password')?.value;
-    const conPw = stuEl('confirm-password')?.value;
+    const curPw = stuEl('cur-pw')?.value || stuEl('current-password')?.value;
+    const newPw = stuEl('new-pw')?.value || stuEl('new-password')?.value;
+    const conPw = stuEl('cfm-pw')?.value || stuEl('confirm-password')?.value;
 
     if (!curPw || !newPw || !conPw) {
         showFeedback('pw-feedback', 'Please fill in all password fields.', 'danger');
@@ -755,9 +755,12 @@ async function updatePassword(event) {
 
     if (res && res.success) {
         showFeedback('pw-feedback', res.message || 'Password updated successfully!', 'success');
-        if (stuEl('current-password')) stuEl('current-password').value = '';
-        if (stuEl('new-password')) stuEl('new-password').value = '';
-        if (stuEl('confirm-password')) stuEl('confirm-password').value = '';
+        const cEl = stuEl('cur-pw') || stuEl('current-password');
+        const nEl = stuEl('new-pw') || stuEl('new-password');
+        const cfEl = stuEl('cfm-pw') || stuEl('confirm-password');
+        if (cEl) cEl.value = '';
+        if (nEl) nEl.value = '';
+        if (cfEl) cfEl.value = '';
     } else {
         showFeedback('pw-feedback', (res && res.message) || 'Failed to update password.', 'danger');
     }

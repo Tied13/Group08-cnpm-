@@ -32,6 +32,7 @@ from models.admin_model import (
     AdminValidationError,
     MIN_CLASS_ENROLLMENT,
 )
+from models.user_model import UserModel
 
 admin_bp = Blueprint('admin_bp', __name__, url_prefix='/admin')
 
@@ -429,3 +430,36 @@ def api_section_report():
 @api_endpoint
 def api_student_report():
     return api_success(AdminReportModel.student_report(_semester_id_arg()))
+
+
+# ==========================================================================
+# 7. DOI MAT KHAU TAI KHOAN QUAN TRI VIEN (ADMIN)
+# ==========================================================================
+@admin_bp.route('/api/change-password', methods=['POST'])
+@api_endpoint
+def api_change_password():
+    """Đổi mật khẩu tài khoản Admin."""
+    data = request.get_json(silent=True) or request.form or {}
+    cur_pwd = data.get('current_password', '')
+    new_pwd = data.get('new_password', '')
+    cfm_pwd = data.get('confirm_password', '')
+
+    if not cur_pwd or not new_pwd or not cfm_pwd:
+        raise AdminValidationError("Please enter all required password fields.")
+    if len(new_pwd) < 6:
+        raise AdminValidationError("New password must be at least 6 characters.")
+    if new_pwd != cfm_pwd:
+        raise AdminValidationError("Password confirmation does not match.")
+    if new_pwd == cur_pwd:
+        raise AdminValidationError("New password must be different from current password.")
+
+    user_id = session.get('user_id')
+    user = UserModel.find_by_id(user_id)
+    if not user:
+        return api_error("Admin account not found.", 404)
+
+    if not UserModel.verify_password(user['PasswordHash'], cur_pwd):
+        raise AdminValidationError("Current password is incorrect.")
+
+    UserModel.update_password(user_id, new_pwd)
+    return api_success(message="Admin password changed successfully! Please remember your new password.")

@@ -131,8 +131,9 @@ def change_password():
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
     
-    old_password = request.form.get('old_password')
-    new_password = request.form.get('new_password')
+    data = request.get_json(silent=True) or request.form or {}
+    old_password = data.get('old_password') or data.get('current_password')
+    new_password = data.get('new_password')
     
     user = UserModel.find_by_id(session['user_id'])
     if not user or not UserModel.verify_password(user['PasswordHash'], old_password):
