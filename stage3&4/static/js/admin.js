@@ -239,7 +239,7 @@ async function loadAdminIdentity() {
 
   // Tự động gắn nút Đổi mật khẩu vào sidebar footer nếu chưa có
   const sf = document.querySelector('.sidebar-footer');
-  if (sf && !$id('btn-admin-change-pw')) {
+  if (sf && !$id('btn-admin-change-pw') && !sf.textContent.includes('Change Password')) {
     const btn = document.createElement('button');
     btn.id = 'btn-admin-change-pw';
     btn.type = 'button';
