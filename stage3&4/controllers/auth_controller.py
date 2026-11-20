@@ -18,6 +18,16 @@ def rbac_middleware():
         flash('Please log in to continue.', 'warning')
         return redirect(url_for('auth.login'))
 
+    # Kiểm tra xem tài khoản có bị khóa không
+    try:
+        current_user = UserModel.find_by_id(session['user_id'])
+        if current_user and current_user.get('Status') == 'Locked':
+            session.clear()
+            flash('Your account has been locked. Please contact the administrator.', 'danger')
+            return redirect(url_for('auth.login'))
+    except Exception:
+        pass
+
     role = session.get('role')  # 'Admin', 'Lecturer', 'Student'
 
     # Chặn sinh viên hoặc giảng viên cố tình truy cập đường dẫn của Admin
@@ -61,16 +71,13 @@ def login():
             flash(f"Account '{username}' not found in the system! Please try sample accounts: admin, admin_daotao, gv_nam, sv_nam, sv_an", 'danger')
             return render_template('login.html')
 
+        # Kiểm tra xem tài khoản có bị khóa không
+        if user.get('Status') == 'Locked':
+            flash(f"Account '{username}' is locked. Please contact the administrator for assistance.", 'danger')
+            return render_template('login.html')
+
         # So khớp mật khẩu
         if UserModel.verify_password(user.get('PasswordHash'), password):
-            # Nếu tài khoản bị khóa do những lần thử sai trước đó, tự động mở khóa khi nhập đúng
-            if user.get('Status') == 'Locked':
-                try:
-                    UserModel.unlock_user(user['Id'])
-                except Exception:
-                    pass
-                user['Status'] = 'Active'
-
             # Đăng nhập đúng: Reset số lần sai và lưu session
             try:
                 UserModel.reset_failed_login(user['Id'])

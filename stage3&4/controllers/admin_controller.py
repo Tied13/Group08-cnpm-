@@ -322,6 +322,14 @@ def api_delete_course(course_id):
     return api_success(result, f"Course {result['CourseCode']} deleted{note}.")
 
 
+@admin_bp.route('/api/courses/<int:course_id>/toggle-status', methods=['POST'])
+@api_endpoint
+def api_toggle_course_status(course_id):
+    result = AdminCourseModel.toggle_course_status(course_id)
+    state = 'Active' if result['IsActive'] else 'Locked'
+    return api_success(result, f"Course {result['CourseCode']} status changed to {state}.")
+
+
 @admin_bp.route('/api/enrollments/override', methods=['POST'])
 @api_endpoint
 def api_manual_override():

@@ -135,3 +135,23 @@ class UserModel:
             return True
 
         return False
+
+    @staticmethod
+    def increment_failed_login(user_id, current_count=0):
+        """Tang so lan dang nhap sai, khoa tai khoan neu >= 5 lan."""
+        new_count = current_count + 1
+        new_status = 'Locked' if new_count >= 5 else 'Active'
+        sql = "UPDATE dbo.Users SET FailedLoginCount = ?, Status = ?, UpdatedAt = SYSDATETIME() WHERE Id = ?"
+        return Database.execute(sql, (new_count, new_status, user_id))
+
+    @staticmethod
+    def reset_failed_login(user_id):
+        """Reset so lan dang nhap sai ve 0."""
+        sql = "UPDATE dbo.Users SET FailedLoginCount = 0, UpdatedAt = SYSDATETIME() WHERE Id = ?"
+        return Database.execute(sql, (user_id,))
+
+    @staticmethod
+    def unlock_user(user_id):
+        """Mo khoa tai khoan nguoi dung."""
+        sql = "UPDATE dbo.Users SET Status = 'Active', FailedLoginCount = 0, UpdatedAt = SYSDATETIME() WHERE Id = ?"
+        return Database.execute(sql, (user_id,))

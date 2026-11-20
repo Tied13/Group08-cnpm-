@@ -189,11 +189,11 @@ def _parse_day_of_week(value):
     cleaned = _clean(value)
     if isinstance(cleaned, str) and cleaned.lower() in DAY_VALUES:
         return DAY_VALUES[cleaned.lower()]
-    return _to_int(cleaned, 'Thứ trong tuần', 2, 8)
+    return _to_int(cleaned, 'Day of week', 2, 8)
 
 
 def _normalize_room(value):
-    room = _require_text(value, 'Phòng học', 30)
+    room = _require_text(value, 'Classroom', 30)
     room = re.sub(r'^(room|phong|phòng)\s+', '', room, flags=re.IGNORECASE)
     return room.strip().upper()
 
@@ -262,7 +262,7 @@ class AdminUserModel:
 
     @staticmethod
     def get_user(user_id):
-        user_id = _to_int(user_id, 'Mã người dùng', 1)
+        user_id = _to_int(user_id, 'User ID', 1)
         user = Database.query_one(
             """/* q:user_by_id */
             SELECT u.Id, u.UserCode, u.Username, u.FullName, u.Email, u.Phone,
@@ -283,24 +283,24 @@ class AdminUserModel:
                     username=None, phone=None, administrative_class=None,
                     enrollment_year=None, academic_degree=None):
         """Them moi tai khoan Sinh vien hoac Giang vien (mat khau duoc bam)."""
-        role = _require_text(role, 'Vai trò')
+        role = _require_text(role, 'Role')
         if role not in MANAGEABLE_ROLES:
             raise AdminValidationError('Only Student or Lecturer accounts can be created.')
-        user_code = _parse_code(user_code, 'Mã SV/GV', 20)
-        full_name = _require_text(full_name, 'Họ tên', 100)
+        user_code = _parse_code(user_code, 'User code', 20)
+        full_name = _require_text(full_name, 'Full name', 100)
         email = _require_text(email, 'Email', 100).lower()
         if not EMAIL_PATTERN.match(email):
             raise AdminValidationError('Invalid email format.')
-        department = _require_text(department, 'Khoa / Chuyên ngành', 100)
+        department = _require_text(department, 'Department / Major', 100)
         password = password if isinstance(password, str) else ''
         if len(password) < MIN_PASSWORD_LENGTH:
             raise AdminValidationError(f'Password must be at least {MIN_PASSWORD_LENGTH} characters.')
-        username = _optional_text(username, 'Tên đăng nhập', 50) or user_code
-        phone = _optional_text(phone, 'Số điện thoại', 20)
-        administrative_class = _optional_text(administrative_class, 'Lớp sinh hoạt', 30) or 'UNASSIGNED'
-        enrollment_year = _to_int(enrollment_year, 'Năm nhập học', 1990, 2100, allow_none=True) \
+        username = _optional_text(username, 'Username', 50) or user_code
+        phone = _optional_text(phone, 'Phone number', 20)
+        administrative_class = _optional_text(administrative_class, 'Administrative class', 30) or 'UNASSIGNED'
+        enrollment_year = _to_int(enrollment_year, 'Enrollment year', 1990, 2100, allow_none=True) \
             or datetime.now().year
-        academic_degree = _optional_text(academic_degree, 'Học vị', 50) or 'Master'
+        academic_degree = _optional_text(academic_degree, 'Academic degree', 50) or 'Master'
 
         password_hash = generate_password_hash(password)
 
@@ -356,13 +356,13 @@ class AdminUserModel:
     @staticmethod
     def update_user(user_id, full_name, email, department, phone=None, role=None):
         """Cap nhat thong tin co ban (khong cho phep doi vai tro)."""
-        user_id = _to_int(user_id, 'Mã người dùng', 1)
-        full_name = _require_text(full_name, 'Họ tên', 100)
+        user_id = _to_int(user_id, 'User ID', 1)
+        full_name = _require_text(full_name, 'Full name', 100)
         email = _require_text(email, 'Email', 100).lower()
         if not EMAIL_PATTERN.match(email):
             raise AdminValidationError('Invalid email format.')
-        department = _require_text(department, 'Khoa / Chuyên ngành', 100)
-        phone = _optional_text(phone, 'Số điện thoại', 20)
+        department = _require_text(department, 'Department / Major', 100)
+        phone = _optional_text(phone, 'Phone number', 20)
 
         with Database.get_cursor() as cursor:
             user = _fetch_one(
@@ -406,8 +406,8 @@ class AdminUserModel:
     @staticmethod
     def set_user_status(user_id, status):
         """Doi trang thai thu cong Active <-> Locked. Mo khoa se reset FailedLoginCount = 0."""
-        user_id = _to_int(user_id, 'Mã người dùng', 1)
-        status = _require_text(status, 'Trạng thái')
+        user_id = _to_int(user_id, 'User ID', 1)
+        status = _require_text(status, 'Status')
         if status not in USER_STATUSES:
             raise AdminValidationError("Status can only be 'Active' or 'Locked'.")
 
@@ -470,13 +470,12 @@ class AdminCourseModel:
                      WHERE cl.CourseId = c.Id AND cl.Status <> 'Cancelled') AS RegisteredStudents
             FROM dbo.Courses c
             LEFT JOIN dbo.Courses p ON p.Id = c.PrerequisiteCourseId
-            WHERE c.IsActive = 1
             ORDER BY c.CourseCode"""
         )
 
     @staticmethod
     def get_course(course_id):
-        course_id = _to_int(course_id, 'Mã môn học', 1)
+        course_id = _to_int(course_id, 'Course code', 1)
         course = Database.query_one(
             """/* q:course_detail */
             SELECT c.Id, c.CourseCode, c.CourseName, c.Credits, c.TheoryHours, c.PracticeHours,
@@ -492,13 +491,13 @@ class AdminCourseModel:
     def _validate_payload(course_code, course_name, credits, prerequisite_course_id,
                           theory_hours, practice_hours, department):
         return {
-            'code': _parse_code(course_code, 'Mã môn học', 20),
-            'name': _require_text(course_name, 'Tên môn học', 150),
-            'credits': _to_int(credits, 'Số tín chỉ', 1, 10),
-            'prereq': _to_int(prerequisite_course_id, 'Môn tiên quyết', 1, allow_none=True),
-            'theory': _to_int(theory_hours, 'Số tiết lý thuyết', 0, 500, allow_none=True),
-            'practice': _to_int(practice_hours, 'Số tiết thực hành', 0, 500, allow_none=True),
-            'department': _optional_text(department, 'Khoa / Bộ môn', 100),
+            'code': _parse_code(course_code, 'Course code', 20),
+            'name': _require_text(course_name, 'Course name', 150),
+            'credits': _to_int(credits, 'Credits', 1, 10),
+            'prereq': _to_int(prerequisite_course_id, 'Prerequisite course', 1, allow_none=True),
+            'theory': _to_int(theory_hours, 'Theory hours', 0, 500, allow_none=True),
+            'practice': _to_int(practice_hours, 'Practice hours', 0, 500, allow_none=True),
+            'department': _optional_text(department, 'Department', 100),
         }
 
     @staticmethod
@@ -567,7 +566,7 @@ class AdminCourseModel:
     @staticmethod
     def update_course(course_id, course_code, course_name, credits, prerequisite_course_id=None,
                       theory_hours=None, practice_hours=None, department=None):
-        course_id = _to_int(course_id, 'Mã môn học', 1)
+        course_id = _to_int(course_id, 'Course code', 1)
         data = AdminCourseModel._validate_payload(course_code, course_name, credits,
                                                   prerequisite_course_id, theory_hours,
                                                   practice_hours, department)
@@ -635,14 +634,14 @@ class AdminCourseModel:
           - Neu mon da tung co lop (da huy) -> xoa mem (IsActive = 0) de giu lich su.
           - Nguoc lai -> xoa han.
         """
-        course_id = _to_int(course_id, 'Mã môn học', 1)
+        course_id = _to_int(course_id, 'Course code', 1)
         with Database.get_cursor() as cursor:
             course = _fetch_one(
                 cursor,
                 "/* q:course_for_delete */ SELECT Id, CourseCode, IsActive FROM dbo.Courses WITH (UPDLOCK) WHERE Id = ?",
                 (course_id,),
             )
-            if not course or not course.get('IsActive'):
+            if not course:
                 raise AdminNotFoundError('Course not found.')
 
             usage = _fetch_one(
@@ -679,6 +678,30 @@ class AdminCourseModel:
 
         return {'Id': course_id, 'CourseCode': course['CourseCode'], 'DeleteMode': mode}
 
+    @staticmethod
+    def toggle_course_status(course_id):
+        """Khoa / Mo khoa mon hoc (IsActive = 0 / 1). Khi khoa, cac lop hoc phan dang mo se dong lai."""
+        course_id = _to_int(course_id, 'Course ID', 1)
+        with Database.get_cursor() as cursor:
+            course = _fetch_one(
+                cursor,
+                "/* q:course_for_toggle */ SELECT Id, CourseCode, CourseName, IsActive FROM dbo.Courses WITH (UPDLOCK) WHERE Id = ?",
+                (course_id,),
+            )
+            if not course:
+                raise AdminNotFoundError('Course not found.')
+            new_status = 0 if course.get('IsActive') else 1
+            _execute(cursor, "/* q:toggle_course_status */ UPDATE dbo.Courses SET IsActive = ? WHERE Id = ?",
+                     (new_status, course_id))
+            if new_status == 0:
+                _execute(cursor, "/* q:close_course_classes */ UPDATE dbo.Classes SET Status = 'Closed' WHERE CourseId = ? AND Status = 'Open'",
+                         (course_id,))
+            else:
+                _execute(cursor, "/* q:reopen_course_classes */ UPDATE dbo.Classes SET Status = 'Open' WHERE CourseId = ? AND Status = 'Closed' AND CurrentEnrollment < MaxCapacity",
+                         (course_id,))
+
+        return {'Id': course_id, 'CourseCode': course['CourseCode'], 'IsActive': new_status}
+
 
 # ==========================================================================
 # 3. THEM / XOA SINH VIEN THU CONG VAO LOP (truong hop dac biet)
@@ -692,9 +715,9 @@ class AdminEnrollmentModel:
         va mon tien quyet) nhung van dam bao: lop chua bi huy, con cho trong,
         khong dang ky trung mon trong cung hoc ky.
         """
-        student_code = _require_text(student_code, 'Mã sinh viên', 20).upper()
-        class_code = _require_text(class_code, 'Mã lớp học phần', 30).upper()
-        action = (_require_text(action, 'Hành động') or '').upper()
+        student_code = _require_text(student_code, 'Student code', 20).upper()
+        class_code = _require_text(class_code, 'Class code', 30).upper()
+        action = (_require_text(action, 'Action') or '').upper()
         if action not in OVERRIDE_ACTIONS:
             raise AdminValidationError("Action can only be 'ADD' or 'REMOVE'.")
 
@@ -839,7 +862,7 @@ class AdminClassModel:
         params = None
         if semester_id:
             sql += " WHERE cl.SemesterId = ?"
-            params = (_to_int(semester_id, 'Học kỳ', 1),)
+            params = (_to_int(semester_id, 'Semester ID', 1),)
         sql += " ORDER BY cl.DayOfWeek, ts.SlotNumber, cl.ClassCode"
 
         classes = Database.query_all(sql, params)
@@ -852,7 +875,7 @@ class AdminClassModel:
     @staticmethod
     def _resolve_lecturer(cursor, lecturer_id=None, lecturer_ref=None):
         """Tim giang vien theo Id, hoac theo chuoi 'GV001 - Ho Ten' / 'GV001' / 'Ho Ten'."""
-        lecturer_id = _to_int(lecturer_id, 'Giảng viên', 1, allow_none=True)
+        lecturer_id = _to_int(lecturer_id, 'Lecturer ID', 1, allow_none=True)
         base_sql = """/* q:lecturer_lookup */
             SELECT u.Id, u.UserCode, u.FullName, u.Status
             FROM dbo.Users u
@@ -861,7 +884,7 @@ class AdminClassModel:
         if lecturer_id:
             lecturer = _fetch_one(cursor, base_sql + "u.Id = ?", (lecturer_id,))
         else:
-            ref = _require_text(lecturer_ref, 'Giảng viên phụ trách', 150)
+            ref = _require_text(lecturer_ref, 'Lecturer', 150)
             code = ref.split(' - ')[0].strip()
             lecturer = _fetch_one(
                 cursor,
@@ -879,14 +902,14 @@ class AdminClassModel:
                      max_capacity, lecturer_id=None, lecturer_ref=None,
                      min_capacity=MIN_CLASS_ENROLLMENT):
         """Mo lop hoc phan moi + phan cong giang vien, kiem tra trung phong & trung lich GV."""
-        course_id = _to_int(course_id, 'Môn học', 1)
-        class_code = _parse_code(class_code, 'Mã lớp học phần', 30)
-        semester_id = _to_int(semester_id, 'Học kỳ', 1)
+        course_id = _to_int(course_id, 'Course ID', 1)
+        class_code = _parse_code(class_code, 'Class code', 30)
+        semester_id = _to_int(semester_id, 'Semester ID', 1)
         room = _normalize_room(room)
         day_of_week = _parse_day_of_week(day_of_week)
-        time_slot_id = _to_int(time_slot_id, 'Ca học', 1)
-        min_capacity = _to_int(min_capacity, 'Sĩ số tối thiểu', 1, MAX_CLASS_CAPACITY)
-        max_capacity = _to_int(max_capacity, 'Sĩ số tối đa', 1, MAX_CLASS_CAPACITY)
+        time_slot_id = _to_int(time_slot_id, 'Time slot', 1)
+        min_capacity = _to_int(min_capacity, 'Minimum capacity', 1, MAX_CLASS_CAPACITY)
+        max_capacity = _to_int(max_capacity, 'Maximum capacity', 1, MAX_CLASS_CAPACITY)
         if max_capacity < min_capacity:
             raise AdminValidationError(f'Maximum capacity must be greater than or equal to minimum capacity ({min_capacity}).')
 
@@ -982,7 +1005,7 @@ class AdminClassModel:
           4. Tinh lai hoc phi cho tung sinh vien bi anh huong.
         Bat ky buoc nao loi -> rollback toan bo.
         """
-        class_id = _to_int(class_id, 'Mã lớp học phần', 1)
+        class_id = _to_int(class_id, 'Class code', 1)
 
         with Database.get_cursor() as cursor:
             course_class = _fetch_one(
@@ -994,7 +1017,7 @@ class AdminClassModel:
                 (class_id,),
             )
             if not course_class:
-                raise AdminNotFoundError('Không tìm thấy lớp học phần.')
+                raise AdminNotFoundError('Class section not found.')
             if course_class['Status'] == 'Cancelled':
                 raise AdminConflictError(f"Class {course_class['ClassCode']} was already cancelled.")
 
@@ -1083,7 +1106,7 @@ class AdminPeriodModel:
         params = None
         if semester_id:
             sql += " WHERE rp.SemesterId = ?"
-            params = (_to_int(semester_id, 'Học kỳ', 1),)
+            params = (_to_int(semester_id, 'Semester ID', 1),)
         sql += " ORDER BY rp.Id DESC"
         periods = Database.query_all(sql, params)
         now = datetime.now()
@@ -1093,7 +1116,7 @@ class AdminPeriodModel:
 
     @staticmethod
     def get_active_period(semester_id):
-        semester_id = _to_int(semester_id, 'Học kỳ', 1)
+        semester_id = _to_int(semester_id, 'Semester ID', 1)
         period = Database.query_one(
             """/* q:active_period */
             SELECT TOP 1 rp.Id, rp.SemesterId, s.SemesterCode, s.SemesterName, rp.PeriodName,
@@ -1115,18 +1138,18 @@ class AdminPeriodModel:
         Thiet lap dot dang ky moi cho hoc ky: vo hieu hoa dot cu (giu lai lam lich su)
         va tao dot moi o trang thai Active.
         """
-        semester_id = _to_int(semester_id, 'Học kỳ', 1)
-        start = _parse_datetime(start_date, 'Ngày bắt đầu')
-        end = _parse_datetime(end_date, 'Ngày kết thúc')
+        semester_id = _to_int(semester_id, 'Semester ID', 1)
+        start = _parse_datetime(start_date, 'Start date')
+        end = _parse_datetime(end_date, 'End date')
         if end <= start:
             raise AdminValidationError('End date must be after start date.')
         min_credits = _to_int(min_credits if min_credits is not None else DEFAULT_MIN_CREDITS,
-                              'Số tín chỉ tối thiểu', 0, 50)
+                              'Minimum credits', 0, 50)
         max_credits = _to_int(max_credits if max_credits is not None else DEFAULT_MAX_CREDITS,
-                              'Số tín chỉ tối đa', 12, 50)
+                              'Maximum credits', 12, 50)
         if max_credits < min_credits:
             raise AdminValidationError('Maximum credits must be greater than or equal to minimum credits.')
-        period_name = _optional_text(period_name, 'Tên đợt đăng ký', 150)
+        period_name = _optional_text(period_name, 'Registration period name', 150)
 
         with Database.get_cursor() as cursor:
             semester = _fetch_one(
@@ -1162,7 +1185,7 @@ class AdminPeriodModel:
     @staticmethod
     def set_period_active(period_id, is_active):
         """Mo / dong mot dot dang ky. Moi hoc ky chi co toi da 1 dot Active."""
-        period_id = _to_int(period_id, 'Mã đợt đăng ký', 1)
+        period_id = _to_int(period_id, 'Registration period ID', 1)
         is_active = bool(is_active) if not isinstance(is_active, str) \
             else is_active.strip().lower() in ('1', 'true', 'yes', 'on')
 
@@ -1206,7 +1229,7 @@ class AdminReportModel:
     @staticmethod
     def student_report(semester_id):
         """Danh sach lop da dang ky va tong tin chi cua tung sinh vien trong hoc ky."""
-        semester_id = _to_int(semester_id, 'Học kỳ', 1)
+        semester_id = _to_int(semester_id, 'Semester ID', 1)
         rows = Database.query_all(
             """/* q:student_report */
             SELECT u.Id AS StudentId, u.UserCode, u.FullName, s.StudentCode, s.Major,

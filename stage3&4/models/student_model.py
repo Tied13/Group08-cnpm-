@@ -219,15 +219,15 @@ class StudentLookupModel:
         """Kiểm tra thời gian mở cổng đăng ký môn học."""
         period = StudentLookupModel.get_active_registration_period(semester_id)
         if not period:
-            return False, None, "Học kỳ này hiện không có đợt đăng ký môn học nào đang mở."
+            return False, None, "There is currently no active registration period for this semester."
         now = datetime.now()
         start = period['StartDate'] if isinstance(period['StartDate'], datetime) else datetime.fromisoformat(str(period['StartDate'])[:19])
         end = period['EndDate'] if isinstance(period['EndDate'], datetime) else datetime.fromisoformat(str(period['EndDate'])[:19])
         if now < start:
-            return False, period, f"Đợt đăng ký '{period['PeriodName']}' chưa bắt đầu (Mở lúc: {_fmt_datetime(start)})."
+            return False, period, f"Registration period '{period['PeriodName']}' has not started yet (Opens at: {_fmt_datetime(start)})."
         if now > end:
-            return False, period, f"Đợt đăng ký '{period['PeriodName']}' đã kết thúc (Đóng lúc: {_fmt_datetime(end)})."
-        return True, period, "Cổng đăng ký môn học đang mở."
+            return False, period, f"Registration period '{period['PeriodName']}' has ended (Closed at: {_fmt_datetime(end)})."
+        return True, period, "Course registration portal is currently open."
 
     @staticmethod
     def get_time_slots():
@@ -423,6 +423,7 @@ class StudentCourseModel:
             LEFT JOIN dbo.Lecturers lec ON lec.UserId = lu.Id
             WHERE cl.SemesterId = ?
               AND cl.Status IN ('Open', 'Closed')
+              AND co.IsActive = 1
             ORDER BY co.CourseCode, cl.ClassCode
             """,
             (semester_id,),
@@ -476,23 +477,23 @@ class StudentCourseModel:
 
             if is_enrolled:
                 can_register = False
-                reasons.append("Đã đăng ký lớp này")
+                reasons.append("Already registered for this section")
             elif is_course_enrolled:
                 can_register = False
-                reasons.append("Đã đăng ký lớp khác của môn học này")
+                reasons.append("Already registered for another section of this course")
             else:
                 if is_full:
                     can_register = False
-                    reasons.append("Lớp đã đủ chỗ (Full)")
+                    reasons.append("Section is full (Max capacity reached)")
                 if not prereq_met:
                     can_register = False
-                    reasons.append(f"Chưa đạt tiên quyết: {c_dict['PrerequisiteCode']}")
+                    reasons.append(f"Prerequisite not met: {c_dict['PrerequisiteCode']}")
                 if has_conflict:
                     can_register = False
-                    reasons.append(f"Trùng ca với {conflict_with['ClassCode']}")
+                    reasons.append(f"Schedule conflict with {conflict_with['ClassCode']}")
                 if exceeds_max_credits:
                     can_register = False
-                    reasons.append(f"Vượt quá 25 tín chỉ (+{credits} -> {current_credits + credits})")
+                    reasons.append(f"Exceeds max allowed credits (+{credits} -> {current_credits + credits})")
 
             c_dict['IsEnrolled'] = is_enrolled
             c_dict['IsCourseEnrolled'] = is_course_enrolled
@@ -575,7 +576,7 @@ class StudentRegistrationModel:
                 /* q:student_reg_get_class */
                 SELECT cl.Id, cl.ClassCode, cl.CourseId, cl.SemesterId, cl.DayOfWeek, cl.TimeSlotId,
                        cl.CurrentEnrollment, cl.MaxCapacity, cl.Status AS ClassStatus,
-                       co.CourseCode, co.CourseName, co.Credits, co.PrerequisiteCourseId
+                       co.CourseCode, co.CourseName, co.Credits, co.PrerequisiteCourseId, co.IsActive
                 FROM dbo.Classes cl
                 INNER JOIN dbo.Courses co ON co.Id = cl.CourseId
                 WHERE cl.Id = ?
@@ -594,7 +595,10 @@ class StudentRegistrationModel:
             course_credits = int(cls['Credits'])
             prereq_course_id = cls.get('PrerequisiteCourseId')
 
-            # Kiểm tra trạng thái lớp
+            # Kiểm tra trạng thái môn và lớp
+            if cls.get('IsActive') is not None and not cls.get('IsActive'):
+                raise StudentValidationError("This course has been locked/deactivated by the University and cannot be registered.")
+
             if cls['ClassStatus'] == 'Cancelled':
                 raise StudentValidationError("This class section has been cancelled by the University.")
 
@@ -825,7 +829,7 @@ class StudentRegistrationModel:
                 INSERT INTO dbo.RegistrationHistory (StudentId, ClassId, ActionType, PerformedByUserId, Note, ActionTime)
                 VALUES (?, ?, 'Register', ?, ?, SYSDATETIME())
                 """,
-                (student_id, class_id, student_id, f"Sinh viên đăng ký thành công lớp {cls['ClassCode']}"),
+                (student_id, class_id, student_id, f"Student successfully registered for section {cls['ClassCode']}"),
             )
 
             # 4. Tự động tính toán lại bảng học phí Tuitions
@@ -953,7 +957,7 @@ class StudentRegistrationModel:
                 INSERT INTO dbo.RegistrationHistory (StudentId, ClassId, ActionType, PerformedByUserId, Note, ActionTime)
                 VALUES (?, ?, 'Drop', ?, ?, SYSDATETIME())
                 """,
-                (student_id, class_id, student_id, f"Sinh viên tự hủy môn học lớp {cls['ClassCode']}"),
+                (student_id, class_id, student_id, f"Student dropped section {cls['ClassCode']}"),
             )
 
             # Bước 7: Tính toán lại học phí

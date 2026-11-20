@@ -12,7 +12,7 @@
    ========================================================================== */
 
 const STU_API = '/student/api';
-const STU_PAGE_SIZE_OPTIONS = [5, 10, 20];
+const STU_PAGE_SIZE_OPTIONS = [8, 10, 20];
 
 const studentState = {
     profile: null,
@@ -139,7 +139,7 @@ async function stuPost(path, data) {
 function stuPaginate(key, items, containerId, renderRows) {
     const box = stuEl(containerId);
     const p = studentState.paging[key] || (studentState.paging[key] = { page: 1, size: 10 });
-    const pages = Math.max(1, Math.ceil(items.length / p.size));
+    const pages = Math.min(8, Math.max(1, Math.ceil(items.length / p.size)));
     p.page = Math.min(Math.max(p.page, 1), pages);
     const start = (p.page - 1) * p.size;
     renderRows(items.slice(start, start + p.size), start);
@@ -152,17 +152,10 @@ function stuPaginate(key, items, containerId, renderRows) {
 
     const from = start + 1;
     const to = Math.min(start + p.size, items.length);
-    const sizeOpts = [5, 10, 20, 50]
-        .map((n) => `<option value="${n}" ${n === p.size ? 'selected' : ''}>${n} / trang</option>`)
-        .join('');
 
     let btns = '';
     for (let i = 1; i <= pages; i++) {
-        if (i === 1 || i === pages || Math.abs(i - p.page) <= 1) {
-            btns += `<button type="button" class="page-btn ${i === p.page ? 'active' : ''}" data-page="${i}">${i}</button>`;
-        } else if (btns.slice(-24) !== '<span class="page-dots">…</span>') {
-            btns += '<span class="page-dots">…</span>';
-        }
+        btns += `<button type="button" class="page-btn ${i === p.page ? 'active' : ''}" data-page="${i}">${i}</button>`;
     }
 
     box.innerHTML = `
@@ -171,9 +164,6 @@ function stuPaginate(key, items, containerId, renderRows) {
                 Showing <strong>${from}–${to}</strong> of <strong>${items.length}</strong> entries
             </div>
             <div class="pagination-controls" style="display:flex; gap:6px; align-items:center;">
-                <select class="page-size-select" style="padding:4px 8px; font-size:0.82rem; border-radius:4px; border:1px solid var(--border-medium); margin-right:8px;">
-                    ${sizeOpts}
-                </select>
                 <button type="button" class="page-btn" data-page="${p.page - 1}" ${p.page <= 1 ? 'disabled' : ''}>&lsaquo;</button>
                 <div class="page-buttons" style="display:inline-flex; gap:4px;">${btns}</div>
                 <button type="button" class="page-btn" data-page="${p.page + 1}" ${p.page >= pages ? 'disabled' : ''}>&rsaquo;</button>
@@ -190,15 +180,6 @@ function stuPaginate(key, items, containerId, renderRows) {
             }
         };
     });
-
-    const sel = box.querySelector('.page-size-select');
-    if (sel) {
-        sel.onchange = () => {
-            p.size = parseInt(sel.value, 10);
-            p.page = 1;
-            stuPaginate(key, items, containerId, renderRows);
-        };
-    }
 }
 
 
@@ -224,7 +205,7 @@ async function loadSemestersDropdown(selectId, onSelectCallback) {
     if (studentState.semesters.length) {
         sel.innerHTML = studentState.semesters.map((s) => `
             <option value="${s.Id}" ${s.Id === studentState.semesterId ? 'selected' : ''}>
-                ${escapeHtml(s.SemesterName)} (${escapeHtml(s.AcademicYear)}) ${s.IsCurrent ? '★ Hiện hành' : ''}
+                ${escapeHtml(s.SemesterName)} (${escapeHtml(s.AcademicYear)}) ${s.IsCurrent ? '★ Current' : ''}
             </option>
         `).join('');
     }
@@ -248,7 +229,7 @@ async function loadCourseModules() {
 
     const res = await stuGet(`/courses?semester_id=${studentState.semesterId || ''}`);
     if (!res || !res.success) {
-        showFeedback('feedback-banner', (res && res.message) || 'Không tải được danh mục lớp học phần.', 'danger');
+        showFeedback('feedback-banner', (res && res.message) || 'Failed to load class sections catalog.', 'danger');
         return;
     }
 

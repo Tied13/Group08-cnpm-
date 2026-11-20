@@ -157,7 +157,8 @@ function setEmptyState(emptyId, isEmpty) {
 
 /* ---------------- Phan trang dung chung ---------------- */
 function getPageState(key) {
-  if (!adminState.pages[key]) adminState.pages[key] = { page: 1, size: DEFAULT_PAGE_SIZE };
+  if (!adminState.pages[key]) adminState.pages[key] = { page: 1, size: Math.max(8, DEFAULT_PAGE_SIZE) };
+  if (adminState.pages[key].size < 8) adminState.pages[key].size = 8;
   return adminState.pages[key];
 }
 
@@ -177,45 +178,34 @@ function renderPagination(containerId, key, totalItems, rerender) {
     container.innerHTML = '';
     return;
   }
-  const totalPages = Math.max(1, Math.ceil(totalItems / state.size));
+  const totalPages = Math.min(8, Math.max(1, Math.ceil(totalItems / state.size)));
+  if (state.page > totalPages) state.page = totalPages;
   const from = (state.page - 1) * state.size + 1;
   const to = Math.min(state.page * state.size, totalItems);
 
   const pages = [];
   for (let p = 1; p <= totalPages; p += 1) {
-    if (p === 1 || p === totalPages || Math.abs(p - state.page) <= 1) {
-      pages.push(p);
-    } else if (pages[pages.length - 1] !== '...') {
-      pages.push('...');
-    }
+    pages.push(p);
   }
 
   container.innerHTML = `
     <div class="pagination-bar">
       <div class="pagination-info">Showing <strong>${from}-${to}</strong> of <strong>${totalItems}</strong></div>
       <div class="pagination-controls">
-        <select class="page-size-select" data-role="size">
-          ${[5, 10, 20, 50].map((n) => `<option value="${n}" ${n === state.size ? 'selected' : ''}>${n} / page</option>`).join('')}
-        </select>
         <button class="page-btn" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''}>&lsaquo;</button>
-        ${pages.map((p) => (p === '...'
-          ? '<span class="page-dots">...</span>'
-          : `<button class="page-btn ${p === state.page ? 'active' : ''}" data-page="${p}">${p}</button>`)).join('')}
+        ${pages.map((p) => `<button class="page-btn ${p === state.page ? 'active' : ''}" data-page="${p}">${p}</button>`).join('')}
         <button class="page-btn" data-page="${state.page + 1}" ${state.page >= totalPages ? 'disabled' : ''}>&rsaquo;</button>
       </div>
     </div>`;
 
   container.querySelectorAll('button[data-page]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      state.page = Number(btn.dataset.page);
-      rerender();
+      const p = Number(btn.dataset.page);
+      if (!Number.isNaN(p) && p >= 1 && p <= totalPages && p !== state.page) {
+        state.page = p;
+        rerender();
+      }
     });
-  });
-  const sizeSelect = container.querySelector('select[data-role="size"]');
-  sizeSelect.addEventListener('change', () => {
-    state.size = Number(sizeSelect.value);
-    state.page = 1;
-    rerender();
   });
 }
 
@@ -456,8 +446,12 @@ function renderCoursesTable() {
       <td>${c.PrerequisiteCode ? escapeHtml(`${c.PrerequisiteCode} - ${c.PrerequisiteName}`) : '<span style="color: var(--text-muted)">None</span>'}</td>
       <td>${escapeHtml(c.ActiveSections)}</td>
       <td>${escapeHtml(c.RegisteredStudents)}</td>
+      <td>${statusBadge(c.IsActive ? 'Active' : 'Locked')}</td>
       <td>
         <div class="action-group">
+          <button class="btn ${c.IsActive ? 'btn-warning-soft' : 'btn-success-soft'} btn-sm" onclick="toggleCourseStatus(${c.Id})">
+            ${c.IsActive ? 'Lock' : 'Unlock'}
+          </button>
           <button class="btn btn-soft btn-sm" onclick="openEditCourse(${c.Id})">Edit</button>
           <button class="btn btn-danger-soft btn-sm" onclick="deleteCourse(${c.Id})">Delete</button>
         </div>
@@ -568,6 +562,20 @@ async function deleteCourse(courseId) {
   if (!window.confirm(`Delete course ${courseLabel(course)}?`)) return;
   try {
     const { message } = await adminApi(`/courses/${courseId}`, { method: 'DELETE' });
+    showAdminToast('course-toast', message, 'success');
+    await loadAdminCourses();
+  } catch (err) {
+    showAdminToast('course-toast', err.message, 'danger');
+  }
+}
+
+async function toggleCourseStatus(courseId) {
+  const course = adminState.courses.find((c) => c.Id === courseId);
+  if (!course) return;
+  const action = course.IsActive ? 'lock' : 'unlock';
+  if (!window.confirm(`Are you sure you want to ${action} course ${courseLabel(course)}?`)) return;
+  try {
+    const { message } = await adminApi(`/courses/${courseId}/toggle-status`, { method: 'POST' });
     showAdminToast('course-toast', message, 'success');
     await loadAdminCourses();
   } catch (err) {

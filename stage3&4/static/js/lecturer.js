@@ -8,7 +8,7 @@
    ========================================================================== */
 
 const LEC_API = '/lecturer/api';
-const LEC_PAGE_SIZE_OPTIONS = [5, 10, 20];
+const LEC_PAGE_SIZE_OPTIONS = [8, 10, 20];
 
 const lecState = {
   semesterId: null,
@@ -81,7 +81,7 @@ async function lecGet(path) {
 function lecPaginate(key, items, containerId, renderRows) {
   const box = lecEl(containerId);
   const p = lecState.paging[key] || (lecState.paging[key] = { page: 1, size: 10 });
-  const pages = Math.max(1, Math.ceil(items.length / p.size));
+  const pages = Math.min(8, Math.max(1, Math.ceil(items.length / p.size)));
   p.page = Math.min(Math.max(p.page, 1), pages);
   const start = (p.page - 1) * p.size;
   renderRows(items.slice(start, start + p.size), start);
@@ -90,8 +90,6 @@ function lecPaginate(key, items, containerId, renderRows) {
   if (items.length === 0) { box.innerHTML = ''; return; }
   const from = start + 1;
   const to = Math.min(start + p.size, items.length);
-  const sizeOpts = LEC_PAGE_SIZE_OPTIONS
-    .map((n) => `<option value="${n}" ${n === p.size ? 'selected' : ''}>${n} / trang</option>`).join('');
   let btns = '';
   for (let i = 1; i <= pages; i++) {
     btns += `<button type="button" class="page-btn ${i === p.page ? 'active' : ''}" data-page="${i}">${i}</button>`;
@@ -100,7 +98,6 @@ function lecPaginate(key, items, containerId, renderRows) {
     <div class="pagination-bar">
       <div class="pagination-info">Showing <strong>${from}-${to}</strong> of <strong>${items.length}</strong> entries</div>
       <div class="pagination-controls">
-        <select class="page-size-select">${sizeOpts}</select>
         <button type="button" class="page-btn" data-page="${p.page - 1}" ${p.page === 1 ? 'disabled' : ''}>&lsaquo;</button>
         ${btns}
         <button type="button" class="page-btn" data-page="${p.page + 1}" ${p.page === pages ? 'disabled' : ''}>&rsaquo;</button>
@@ -110,11 +107,6 @@ function lecPaginate(key, items, containerId, renderRows) {
     p.page = parseInt(b.dataset.page, 10);
     lecPaginate(key, items, containerId, renderRows);
   }));
-  box.querySelector('.page-size-select').addEventListener('change', (e) => {
-    p.size = parseInt(e.target.value, 10);
-    p.page = 1;
-    lecPaginate(key, items, containerId, renderRows);
-  });
 }
 
 /* ------------------------- DUNG CHUNG: USER + HOC KY ------------------------- */
@@ -429,13 +421,13 @@ function renderStudents() {
 async function exportStudentCSV() {
   const classId = parseInt((lecEl('section-select') || {}).value, 10);
   if (!classId) {
-    lecBanner('export-toast', 'Vui lòng chọn lớp học phần trước khi xuất.', 'danger');
+    lecBanner('export-toast', 'Please select a class section before exporting.', 'danger');
     return;
   }
   try {
     const res = await fetch(`${LEC_API}/classes/${classId}/export`);
     if (!res.ok) {
-      let msg = 'Xuất file thất bại.';
+      let msg = 'Failed to export file.';
       try { msg = (await res.json()).message || msg; } catch (e) { /* khong phai JSON */ }
       lecBanner('export-toast', msg, 'danger');
       return;
@@ -452,7 +444,7 @@ async function exportStudentCSV() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    lecBanner('export-toast', `Đã xuất file ${filename}`, 'success');
+    lecBanner('export-toast', `Exported file ${filename} successfully.`, 'success');
   } catch (err) {
     console.error(err);
     lecBanner('export-toast', 'Server connection error!', 'danger');
@@ -486,7 +478,7 @@ async function handleLecturerPassword(event) {
   const next = (lecEl('new-pw') || lecEl('new-password'))?.value || '';
   const confirm = (lecEl('cfm-pw') || lecEl('confirm-password'))?.value || '';
   if (next !== confirm) {
-    lecBanner('pw-toast', 'Mật khẩu xác nhận không khớp.', 'danger');
+    lecBanner('pw-toast', 'Confirmation password does not match.', 'danger');
     return;
   }
   try {
