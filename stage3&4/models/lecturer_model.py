@@ -1,24 +1,25 @@
 """
 models/lecturer_model.py
 ========================
-Tang du lieu (Model) cho PHAN HE GIANG VIEN (Lecturer).
+Data layer (Model) for the LECTURER MODULE.
 
-Chuc nang:
-    1. LecturerProfileModel  - Thong tin ca nhan + doi mat khau.
-    2. LecturerClassModel    - Danh sach lop hoc phan duoc phan cong (kem si so THUC TE),
-                               danh sach sinh vien theo lop, thong ke tai giang day.
-    3. LecturerScheduleModel - Lich giang day theo tuan (dua tren ngay bat dau hoc ky).
-    4. LecturerExportModel   - Tao noi dung file CSV (UTF-8) danh sach sinh vien cua lop.
+Features:
+    1. LecturerProfileModel  - Personal information + password change.
+    2. LecturerClassModel    - List of assigned course sections (with ACTUAL enrollment count),
+                               student list per class, teaching load statistics.
+    3. LecturerScheduleModel - Weekly teaching schedule (based on the semester start date).
+    4. LecturerExportModel   - Builds the CSV (UTF-8) content of a class's student list.
 
-Du lieu dua tren schema cua init_database.sql (TV1):
+Data is based on the schema of init_database.sql (Member 1):
     Users, Lecturers, Semesters, Courses, Classes, Classrooms, TimeSlots, Enrollments, Students.
-    - Classes.LecturerId tro toi Users.Id cua giang vien.
-    - Si so thuc te = so ban ghi Enrollments co Status = 'Enrolled' (khong tin hoan toan
-      vao cot Classes.CurrentEnrollment, de bao cao luon khop voi danh sach chi tiet).
+    - Classes.LecturerId points to the lecturer's Users.Id.
+    - Actual enrollment count = number of Enrollments records with Status = 'Enrolled' (the
+      Classes.CurrentEnrollment column is not fully trusted, so reports always match the
+      detailed list).
 
-Moi truy van dung tham so '?' (chong SQL Injection) qua models/db.py.
-Moi cau SQL co comment /* q:ten_truy_van */ de Unit Test (tests/test_lecturer.py) nhan dien,
-comment nay khong anh huong toi SQL Server (cung quy uoc voi models/admin_model.py).
+Every query uses '?' parameters (SQL Injection protection) via models/db.py.
+Every SQL statement has a /* q:query_name */ comment so the Unit Tests (tests/test_lecturer.py)
+can identify it; this comment does not affect SQL Server (same convention as models/admin_model.py).
 """
 
 import csv
@@ -32,7 +33,7 @@ from models.db import Database
 
 
 # ==========================================================================
-# HANG SO
+# CONSTANTS
 # ==========================================================================
 MIN_PASSWORD_LENGTH = 6
 DAY_NAMES = {
@@ -44,15 +45,15 @@ CSV_HEADERS = [
     'No.', 'Student ID', 'Full Name', 'Class', 'Major',
     'Email', 'Phone Number', 'Registration Date', 'Status',
 ]
-# Ky tu dau o co the bi Excel hieu nham thanh cong thuc (CSV injection)
+# Leading characters that Excel may misinterpret as a formula (CSV injection)
 _CSV_FORMULA_PREFIXES = ('=', '+', '-', '@', '\t', '\r')
 
 
 # ==========================================================================
-# EXCEPTIONS - Controller dua vao status_code de tra ve HTTP code tuong ung
+# EXCEPTIONS - the Controller uses status_code to return the matching HTTP code
 # ==========================================================================
 class LecturerError(Exception):
-    """Loi nghiep vu chung cua phan he Giang vien."""
+    """General business error of the Lecturer module."""
     status_code = 400
 
     def __init__(self, message, status_code=None):
@@ -63,25 +64,25 @@ class LecturerError(Exception):
 
 
 class LecturerValidationError(LecturerError):
-    """Du lieu dau vao khong hop le (HTTP 400)."""
+    """Invalid input data (HTTP 400)."""
     status_code = 400
 
 
 class LecturerPermissionError(LecturerError):
-    """Giang vien truy cap lop khong duoc phan cong cho minh (HTTP 403)."""
+    """Lecturer accessing a class that is not assigned to them (HTTP 403)."""
     status_code = 403
 
 
 class LecturerNotFoundError(LecturerError):
-    """Khong tim thay ban ghi (HTTP 404)."""
+    """Record not found (HTTP 404)."""
     status_code = 404
 
 
 # ==========================================================================
-# HAM TRO GIUP
+# HELPER FUNCTIONS
 # ==========================================================================
 def _to_date(value):
-    """Chuyen date/datetime/chuoi ISO ve datetime.date."""
+    """Convert a date/datetime/ISO string to datetime.date."""
     if isinstance(value, datetime):
         return value.date()
     if isinstance(value, date):
@@ -90,7 +91,7 @@ def _to_date(value):
 
 
 def _fmt_time(value):
-    """Chuyen time/chuoi ve 'HH:MM'."""
+    """Convert a time/string to 'HH:MM'."""
     if hasattr(value, 'strftime'):
         return value.strftime('%H:%M')
     return str(value)[:5]
@@ -105,7 +106,7 @@ def _fmt_datetime(value):
 
 
 def _csv_safe(value):
-    """Chong CSV/Excel formula injection: them dau ' truoc o bat dau bang = + - @."""
+    """Prevent CSV/Excel formula injection: prefix a ' to cells starting with = + - @."""
     if value is None:
         return ''
     text = str(value)
@@ -115,7 +116,7 @@ def _csv_safe(value):
 
 
 def _decorate_class(row):
-    """Bo sung ten thu/ca hoc/si so cho 1 dong lop hoc phan."""
+    """Add day name / time range / room to one course section row."""
     item = dict(row)
     item['DayName'] = DAY_NAMES.get(item.get('DayOfWeek'), '')
     item['TimeRange'] = f"{_fmt_time(item.get('StartTime'))} - {_fmt_time(item.get('EndTime'))}"
@@ -124,7 +125,7 @@ def _decorate_class(row):
 
 
 # ==========================================================================
-# 1. HO SO & DOI MAT KHAU
+# 1. PROFILE & PASSWORD CHANGE
 # ==========================================================================
 class LecturerProfileModel:
 
@@ -148,7 +149,7 @@ class LecturerProfileModel:
 
     @staticmethod
     def change_password(user_id, current_password, new_password, confirm_password):
-        """Doi mat khau: kiem tra mat khau cu, do dai, xac nhan, khac mat khau cu."""
+        """Change password: validate the old password, length, confirmation, and that it differs from the old password."""
         if not current_password or not new_password or not confirm_password:
             raise LecturerValidationError('Please enter all required password fields.')
         if len(new_password) < MIN_PASSWORD_LENGTH:
@@ -177,7 +178,7 @@ class LecturerProfileModel:
 
 
 # ==========================================================================
-# 2. LOP HOC PHAN & DANH SACH SINH VIEN
+# 2. COURSE SECTIONS & STUDENT LISTS
 # ==========================================================================
 class LecturerClassModel:
 
@@ -217,8 +218,8 @@ class LecturerClassModel:
     @staticmethod
     def list_assigned_classes(lecturer_id, semester_id):
         """
-        Cac lop hoc phan GV duoc phan cong trong hoc ky, kem si so thuc te
-        (dem Enrollments 'Enrolled'). Lop da huy van hien thi voi Status='Cancelled'.
+        Course sections assigned to the lecturer in the semester, with the actual enrollment
+        count (counting 'Enrolled' Enrollments). Cancelled classes are still shown with Status='Cancelled'.
         """
         rows = Database.query_all(
             """
@@ -245,7 +246,7 @@ class LecturerClassModel:
 
     @staticmethod
     def summarize(classes):
-        """Thong ke tai giang day (bo qua lop da huy)."""
+        """Teaching load statistics (cancelled classes are excluded)."""
         active = [c for c in classes if c.get('ClassStatus') != 'Cancelled']
         return {
             'total_sections': len(active),
@@ -257,7 +258,7 @@ class LecturerClassModel:
 
     @staticmethod
     def get_owned_class(lecturer_id, class_id):
-        """Lay lop hoc phan va dam bao no thuoc ve giang vien dang dang nhap."""
+        """Get the course section and ensure it belongs to the logged-in lecturer."""
         row = Database.query_one(
             """
             /* q:lecturer_class_by_id */
@@ -277,7 +278,7 @@ class LecturerClassModel:
 
     @staticmethod
     def list_students(lecturer_id, class_id):
-        """Danh sach SV dang ky thanh cong (Enrolled/Completed) cua lop: MSSV, ho ten, lop, ngay dang ky."""
+        """Students successfully enrolled (Enrolled/Completed) in the class: student ID, full name, class, enrollment date."""
         cls = LecturerClassModel.get_owned_class(lecturer_id, class_id)
         rows = Database.query_all(
             """
@@ -296,7 +297,7 @@ class LecturerClassModel:
 
 
 # ==========================================================================
-# 3. LICH GIANG DAY THEO TUAN
+# 3. WEEKLY TEACHING SCHEDULE
 # ==========================================================================
 class LecturerScheduleModel:
 
@@ -313,8 +314,8 @@ class LecturerScheduleModel:
     @staticmethod
     def week_info(semester, week=None, today=None):
         """
-        Tinh thong tin tuan hoc. Tuan 1 bat dau vao thu Hai cua tuan chua ngay bat dau hoc ky.
-        Neu week=None thi lay tuan hien tai (gioi han trong [1, tong so tuan]).
+        Compute week information. Week 1 starts on the Monday of the week containing the semester start date.
+        If week=None, use the current week (clamped to [1, total number of weeks]).
         """
         start = _to_date(semester['StartDate'])
         end = _to_date(semester['EndDate'])
@@ -352,10 +353,10 @@ class LecturerScheduleModel:
         sessions = []
         for c in classes:
             if c['ClassStatus'] == 'Cancelled':
-                continue  # Lop da huy khong con lich day
+                continue  # Cancelled classes no longer have teaching sessions
             session_date = info['week_start'] + timedelta(days=c['DayOfWeek'] - 2)
             if not (info['semester_start'] <= session_date <= info['semester_end']):
-                continue  # Buoi hoc nam ngoai thoi gian hoc ky
+                continue  # Session falls outside the semester period
             item = dict(c)
             item['SessionDate'] = session_date
             sessions.append(item)
@@ -375,15 +376,15 @@ class LecturerScheduleModel:
 
 
 # ==========================================================================
-# 4. XUAT CSV
+# 4. CSV EXPORT
 # ==========================================================================
 class LecturerExportModel:
 
     @staticmethod
     def build_students_csv(lecturer_id, class_id):
         """
-        Tra ve (ten_file, noi_dung_csv). Noi dung la str; controller ma hoa UTF-8 co BOM
-        (utf-8-sig) de Excel hien thi dung tieng Viet. Lop chua co SV -> chi co dong tieu de.
+        Return (filename, csv_content). The content is a str; the controller encodes it as UTF-8 with BOM
+        (utf-8-sig) so Excel displays accented characters correctly. A class with no students -> header row only.
         """
         cls, students = LecturerClassModel.list_students(lecturer_id, class_id)
 

@@ -1,10 +1,10 @@
 /* ==========================================================================
-   static/js/lecturer.js  -  PHAN HE GIANG VIEN (Faculty & Lecturer Portal)
+   static/js/lecturer.js  -  LECTURER MODULE (Faculty & Lecturer Portal)
 
-   Chuc nang: xem lich day theo tuan, xem danh sach lop phu trach, xem danh sach
-   sinh vien theo lop va xuat CSV, doi mat khau.
-   Goi API: /lecturer/api/... (controllers/lecturer_controller.py).
-   File dung chung cho 4 trang lecturer-*.html; moi trang tu nhan biet bang id phan tu.
+   Features: view the weekly teaching schedule, view assigned classes, view the student
+   list per class and export CSV, change password.
+   Calls the API: /lecturer/api/... (controllers/lecturer_controller.py).
+   Shared by the 4 lecturer-*.html pages; each page detects itself by element id.
    ========================================================================== */
 
 const LEC_API = '/lecturer/api';
@@ -12,16 +12,16 @@ const LEC_PAGE_SIZE_OPTIONS = [8, 10, 20];
 
 const lecState = {
   semesterId: null,
-  classes: [],            // lop duoc phan cong (trang classes / schedule)
+  classes: [],            // assigned classes (classes / schedule pages)
   filtered: [],
-  students: [],           // sinh vien cua lop dang chon
+  students: [],           // students of the selected class
   studentsFiltered: [],
-  week: null,             // tuan dang xem (null = tuan hien tai)
+  week: null,             // week being viewed (null = current week)
   totalWeeks: 1,
-  paging: {},             // trang hien tai / so dong moi trang theo tung bang
+  paging: {},             // current page / rows per page for each table
 };
 
-/* ------------------------------ TIEN ICH ------------------------------ */
+/* ------------------------------ UTILITIES ------------------------------ */
 function lecEl(id) { return document.getElementById(id); }
 
 function lecEscape(value) {
@@ -51,7 +51,7 @@ function lecFormatDateTime(iso) {
   return `${lecFormatDate(iso)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-/* Thong bao dang banner co san trong template (export-toast / pw-toast) */
+/* Banner notification already present in the template (export-toast / pw-toast) */
 let lecBannerTimer = null;
 function lecBanner(bannerId, message, type = 'success') {
   const el = lecEl(bannerId);
@@ -77,7 +77,7 @@ async function lecGet(path) {
   }
 }
 
-/* ------------------------------ PHAN TRANG ------------------------------ */
+/* ------------------------------ PAGINATION ------------------------------ */
 function lecPaginate(key, items, containerId, renderRows) {
   const box = lecEl(containerId);
   const p = lecState.paging[key] || (lecState.paging[key] = { page: 1, size: 10 });
@@ -109,7 +109,7 @@ function lecPaginate(key, items, containerId, renderRows) {
   }));
 }
 
-/* ------------------------- DUNG CHUNG: USER + HOC KY ------------------------- */
+/* ------------------------- SHARED: USER + SEMESTER ------------------------- */
 async function lecLoadProfileChip() {
   const res = await lecGet('/me');
   if (!res || !res.success) return null;
@@ -146,7 +146,7 @@ function lecStatusBadge(status) {
 }
 
 /* ========================================================================
-   TRANG 1: lecturer-classes.html  (Xem lop phu trach)
+   PAGE 1: lecturer-classes.html  (View assigned classes)
    ======================================================================== */
 async function loadAssignedClasses() {
   const select = lecEl('semester-select');
@@ -231,7 +231,7 @@ function closeClassDetail() {
 }
 
 /* ========================================================================
-   TRANG 2: lecturer-schedule.html  (Lich day theo tuan)
+   PAGE 2: lecturer-schedule.html  (Weekly teaching schedule)
    ======================================================================== */
 function onSemesterChange() {
   lecState.week = null;
@@ -245,7 +245,7 @@ async function loadSchedulePage() {
   const select = lecEl('semester-select');
   if (select) lecState.semesterId = parseInt(select.value, 10) || null;
 
-  // Bang tong hop cac lop duoc phan cong
+  // Summary table of assigned classes
   const res = await lecGet(`/classes?semester_id=${lecState.semesterId || ''}`);
   if (res && res.success) {
     lecState.classes = res.data.classes;
@@ -306,7 +306,7 @@ async function loadWeeklyGrid() {
   lecSetText('week-date-range',
     `Viewing weekly teaching schedule: ${lecFormatDate(data.week.week_start)} - ${lecFormatDate(data.week.week_end)}`);
 
-  // Chi hien thi Chu nhat neu thuc su co buoi day vao Chu nhat
+  // Only show Sunday if there is actually a session on Sunday
   const hasSunday = data.sessions.some((s) => s.DayOfWeek === 8);
   const days = data.days.filter((d) => d.day <= 7 || hasSunday);
   board.style.gridTemplateColumns = `115px repeat(${days.length}, 1fr)`;
@@ -337,18 +337,18 @@ async function loadWeeklyGrid() {
 }
 
 /* ========================================================================
-   TRANG 3: lecturer-students.html  (Danh sach SV + xuat CSV)
+   PAGE 3: lecturer-students.html  (Student list + CSV export)
    ======================================================================== */
 async function loadStudentRoster() {
   const semSelect = lecEl('sem-select');
   const secSelect = lecEl('section-select');
 
   if (semSelect) lecState.semesterId = parseInt(semSelect.value, 10) || null;
-  // onchange cua ca 2 dropdown cung goi ham nay -> nhan biet doi hoc ky bang cach so sanh
+  // onchange of both dropdowns calls this function -> detect a semester change by comparison
   const semesterChanged = lecState.loadedSemesterId !== undefined
     && lecState.loadedSemesterId !== lecState.semesterId;
 
-  // Doi hoc ky (hoac lan dau) -> nap lai danh sach lop cua hoc ky do
+  // Semester changed (or first load) -> reload the class list of that semester
   if (semesterChanged || !lecState.classesLoaded) {
     const res = await lecGet(`/classes?semester_id=${lecState.semesterId || ''}`);
     if (!res || !res.success) return;
@@ -417,7 +417,7 @@ function renderStudents() {
   });
 }
 
-/* Xuat CSV: goi endpoint server, tai file ve qua Blob (de hien loi dang thong bao) */
+/* Export CSV: call the server endpoint, download the file via Blob (so errors can be shown as notifications) */
 async function exportStudentCSV() {
   const classId = parseInt((lecEl('section-select') || {}).value, 10);
   if (!classId) {
@@ -428,7 +428,7 @@ async function exportStudentCSV() {
     const res = await fetch(`${LEC_API}/classes/${classId}/export`);
     if (!res.ok) {
       let msg = 'Failed to export file.';
-      try { msg = (await res.json()).message || msg; } catch (e) { /* khong phai JSON */ }
+      try { msg = (await res.json()).message || msg; } catch (e) { /* not JSON */ }
       lecBanner('export-toast', msg, 'danger');
       return;
     }
@@ -452,7 +452,7 @@ async function exportStudentCSV() {
 }
 
 /* ========================================================================
-   TRANG 4: lecturer-profile.html  (Ho so + doi mat khau)
+   PAGE 4: lecturer-profile.html  (Profile + password change)
    ======================================================================== */
 function lecFillProfile(me) {
   const map = {
@@ -500,20 +500,20 @@ async function handleLecturerPassword(event) {
   }
 }
 
-/* ------------------------------ KHOI TAO TRANG ------------------------------ */
+/* ------------------------------ PAGE INITIALIZATION ------------------------------ */
 document.addEventListener('DOMContentLoaded', async () => {
   const me = await lecLoadProfileChip();
 
-  if (lecEl('assigned-classes-tbody')) {              // trang Classes
+  if (lecEl('assigned-classes-tbody')) {              // Classes page
     await lecLoadSemesters('semester-select');
     await loadAssignedClasses();
-  } else if (lecEl('lecturer-timetable-board')) {     // trang Schedule
+  } else if (lecEl('lecturer-timetable-board')) {     // Schedule page
     await lecLoadSemesters('semester-select');
     await loadSchedulePage();
-  } else if (lecEl('student-tbody')) {                // trang Students
+  } else if (lecEl('student-tbody')) {                // Students page
     await lecLoadSemesters('sem-select');
     await loadStudentRoster();
-  } else if (lecEl('cur-pw') && me) {                 // trang Profile
+  } else if (lecEl('cur-pw') && me) {                 // Profile page
     lecFillProfile(me);
   }
 });

@@ -1,18 +1,18 @@
 """
 controllers/lecturer_controller.py
 ==================================
-Controller cho PHAN HE GIANG VIEN (Lecturer Portal).
+Controller for the LECTURER MODULE (Lecturer Portal).
 
-Gom 2 nhom route (tien to /lecturer):
-  1. Route render giao dien HTML (lecturerView/*.html). Ho tro ca dang ngan
-     (/lecturer/classes) va dang ten file (/lecturer/lecturer-classes.html) vi sidebar
-     trong template dang dung link tuong doi "lecturer-classes.html".
-  2. Route API JSON (/lecturer/api/...) duoc static/js/lecturer.js goi bang fetch,
-     va endpoint xuat CSV (/lecturer/api/classes/<id>/export).
+Contains 2 groups of routes (prefix /lecturer):
+  1. HTML page rendering routes (lecturerView/*.html). Supports both the short form
+     (/lecturer/classes) and the file-name form (/lecturer/lecturer-classes.html), because
+     the sidebar in the templates uses the relative link "lecturer-classes.html".
+  2. JSON API routes (/lecturer/api/...) called by static/js/lecturer.js via fetch,
+     plus the CSV export endpoint (/lecturer/api/classes/<id>/export).
 
-Dinh dang phan hoi API (thong nhat voi admin_controller):
-  Thanh cong: {"success": true,  "message": "...", "data": ...}
-  That bai  : {"success": false, "message": "..."}  + HTTP 400/401/403/404/500
+API response format (consistent with admin_controller):
+  Success: {"success": true,  "message": "...", "data": ...}
+  Failure: {"success": false, "message": "..."}  + HTTP 400/401/403/404/500
 """
 
 from datetime import date, datetime, time
@@ -36,8 +36,8 @@ lecturer_bp = Blueprint('lecturer_bp', __name__, url_prefix='/lecturer')
 
 
 # ==========================================================================
-# BAO VE PHAN HE: chi tai khoan co role = 'Lecturer' moi duoc truy cap /lecturer/*
-# (lop bao ve bo sung, ben canh middleware RBAC chung cua module Auth)
+# MODULE GUARD: only accounts with role = 'Lecturer' can access /lecturer/*
+# (an extra protection layer, alongside the shared RBAC middleware of the Auth module)
 # ==========================================================================
 @lecturer_bp.before_request
 def ensure_lecturer_role():
@@ -51,10 +51,10 @@ def ensure_lecturer_role():
 
 
 # ==========================================================================
-# HAM TRO GIUP
+# HELPER FUNCTIONS
 # ==========================================================================
 def _jsonable(value):
-    """Chuyen datetime / time / Decimal ... ve kieu JSON hop le."""
+    """Convert datetime / time / Decimal ... to JSON-serializable types."""
     if isinstance(value, dict):
         return {key: _jsonable(val) for key, val in value.items()}
     if isinstance(value, (list, tuple)):
@@ -81,14 +81,14 @@ def api_error(message, status=400):
 
 
 def api_endpoint(func):
-    """Bat loi tap trung cho moi API: loi nghiep vu -> 4xx, loi he thong -> 500."""
+    """Centralized error handling for every API: business errors -> 4xx, system errors -> 500."""
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except LecturerError as exc:
             return api_error(exc.message, exc.status_code)
-        except Exception as exc:  # pragma: no cover - phong khi loi CSDL ngoai du kien
+        except Exception as exc:  # pragma: no cover - guards against unexpected database errors
             current_app.logger.exception('Lecturer API error: %s', exc)
             return api_error(f'Server error: {exc}', 500)
     return wrapper
@@ -99,7 +99,7 @@ def _lecturer_id():
 
 
 def _semester_id_arg():
-    """semester_id tu query string; neu khong co thi dung hoc ky hien hanh."""
+    """semester_id from the query string; if absent, use the current semester."""
     semester_id = request.args.get('semester_id', type=int)
     if semester_id:
         return semester_id
@@ -107,7 +107,7 @@ def _semester_id_arg():
 
 
 # ==========================================================================
-# 1. ROUTE RENDER GIAO DIEN
+# 1. PAGE RENDERING ROUTES
 # ==========================================================================
 @lecturer_bp.route('/')
 def lecturer_home():
@@ -140,12 +140,12 @@ def profile_page():
 
 @lecturer_bp.route('/lecturer-login.html')
 def logout_link():
-    """Nut 'Log Out' trong template tro toi lecturer-login.html -> chuyen sang /logout cua Auth."""
+    """The 'Log Out' button in the templates points to lecturer-login.html -> redirect to the Auth module's /logout."""
     return redirect('/logout')
 
 
 # ==========================================================================
-# 2. API JSON
+# 2. JSON API
 # ==========================================================================
 @lecturer_bp.route('/api/me')
 @api_endpoint
@@ -166,7 +166,7 @@ def api_semesters():
 @lecturer_bp.route('/api/classes')
 @api_endpoint
 def api_classes():
-    """Danh sach lop phu trach (kem si so thuc te) + thong ke tai giang day."""
+    """List of assigned classes (with actual enrollment count) + teaching load statistics."""
     semester_id = _semester_id_arg()
     if not semester_id:
         return api_success({'classes': [], 'summary': LecturerClassModel.summarize([])})
@@ -181,7 +181,7 @@ def api_classes():
 @lecturer_bp.route('/api/schedule')
 @api_endpoint
 def api_schedule():
-    """Lich giang day theo tuan: ?semester_id=&week= (khong co week -> tuan hien tai)."""
+    """Weekly teaching schedule: ?semester_id=&week= (no week -> current week)."""
     semester_id = _semester_id_arg()
     if not semester_id:
         return api_error('No semester found in the system.', 404)
@@ -200,7 +200,7 @@ def api_class_students(class_id):
 @lecturer_bp.route('/api/classes/<int:class_id>/export')
 @api_endpoint
 def api_export_students(class_id):
-    """Xuat danh sach SV cua lop ra .csv ma hoa UTF-8 (co BOM de Excel doc dung tieng Viet)."""
+    """Export the class student list as a UTF-8 encoded .csv (with BOM so Excel displays accented characters correctly)."""
     filename, content = LecturerExportModel.build_students_csv(_lecturer_id(), class_id)
     payload = content.encode('utf-8-sig')
     return Response(
