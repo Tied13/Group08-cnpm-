@@ -1,25 +1,25 @@
 """
 models/admin_model.py
 =====================
-Tang du lieu (Model) cho PHAN HE ADMIN.
+Data access layer (Model) for the ADMIN PORTAL.
 
-Chuc nang:
-    1. AdminUserModel      - Quan ly tai khoan SV/GV (them moi, sua, khoa / mo khoa).
-    2. AdminCourseModel    - Quan ly mon hoc (them/sua/xoa, chon mon tien quyet).
-    3. AdminEnrollmentModel- Them/xoa thu cong sinh vien vao lop (truong hop dac biet).
-    4. AdminClassModel     - Mo lop hoc phan (kiem tra trung phong / trung lich GV)
-                             va HUY LOP HOC PHAN < 15 SV bang transaction.
-    5. AdminPeriodModel    - Cau hinh dot dang ky (RegistrationPeriods).
-    6. AdminReportModel    - Bao cao ty le lap day lop & tin chi theo sinh vien.
-    7. AdminLookupModel    - Du lieu tra cuu (ca hoc, giang vien, phong hoc).
+Modules:
+    1. AdminUserModel      - Manage Student/Lecturer accounts (create, update, lock / unlock).
+    2. AdminCourseModel    - Manage courses (create/update/delete, set prerequisites, lock/unlock).
+    3. AdminEnrollmentModel- Manually add/remove students from class sections (special overrides).
+    4. AdminClassModel     - Open class sections (check room / lecturer conflicts)
+                             and CANCEL CLASS SECTIONS with < 15 students in a transaction.
+    5. AdminPeriodModel    - Configure registration periods (RegistrationPeriods).
+    6. AdminReportModel    - Generate class fill-rate & student credit compliance reports.
+    7. AdminLookupModel    - Lookup reference data (time slots, lecturers, classrooms).
 
-Moi truy van deu dung tham so '?' (chong SQL Injection) thong qua models/db.py.
-Cac thao tac ghi nhieu bang duoc boc trong MOT transaction bang
-`Database.get_cursor()` (tu commit khi thanh cong, tu rollback khi co loi).
+All queries use parameterized '?' placeholders (SQL Injection prevention) via models/db.py.
+Multi-table write operations are wrapped in a SINGLE transaction using
+`Database.get_cursor()` (auto-commit on success, auto-rollback on error).
 
-Ghi chu: moi cau SQL co mot comment dang /* q:ten_truy_van */ de de doc log
-va de Unit Test (tests/test_admin.py) nhan dien truy van. Comment nay khong
-anh huong toi SQL Server.
+Note: Each SQL statement includes a tag comment /* q:query_name */ for readable logs
+and for Unit Tests (tests/test_admin.py) to identify queries. This comment does not
+affect SQL Server execution.
 """
 
 import re
@@ -32,9 +32,9 @@ from models.db import Database
 
 
 # ==========================================================================
-# HANG SO NGHIEP VU
+# BUSINESS CONSTANTS
 # ==========================================================================
-MIN_CLASS_ENROLLMENT = 15          # Lop co si so < 15 thi duoc phep huy
+MIN_CLASS_ENROLLMENT = 15          # Classes with enrollment < 15 are eligible for cancellation
 DEFAULT_MIN_CREDITS = 12
 DEFAULT_MAX_CREDITS = 25
 MIN_PASSWORD_LENGTH = 6
@@ -57,10 +57,10 @@ CODE_PATTERN = re.compile(r'^[A-Za-z0-9_.\-]+$')
 
 
 # ==========================================================================
-# EXCEPTIONS - Controller dua vao status_code de tra ve HTTP code tuong ung
+# EXCEPTIONS - Controller maps status_code to the corresponding HTTP response
 # ==========================================================================
 class AdminError(Exception):
-    """Loi nghiep vu chung cua phan he Admin."""
+    """Base business logic error for the Admin portal."""
     status_code = 400
 
     def __init__(self, message, status_code=None):
@@ -71,22 +71,22 @@ class AdminError(Exception):
 
 
 class AdminValidationError(AdminError):
-    """Du lieu dau vao khong hop le (HTTP 400)."""
+    """Invalid input data (HTTP 400)."""
     status_code = 400
 
 
 class AdminNotFoundError(AdminError):
-    """Khong tim thay ban ghi (HTTP 404)."""
+    """Record not found (HTTP 404)."""
     status_code = 404
 
 
 class AdminConflictError(AdminError):
-    """Trung lap / xung dot du lieu (HTTP 409)."""
+    """Duplicate / conflicting data (HTTP 409)."""
     status_code = 409
 
 
 # ==========================================================================
-# HAM TRO GIUP (dung chung trong file)
+# HELPER FUNCTIONS (shared within this module)
 # ==========================================================================
 def _execute(cursor, sql, params=None):
     if params:
@@ -96,7 +96,7 @@ def _execute(cursor, sql, params=None):
 
 
 def _fetch_one(cursor, sql, params=None):
-    """Chay SELECT trong transaction hien tai va tra ve 1 dict (hoac None)."""
+    """Execute a SELECT within the current transaction and return a single dict (or None)."""
     _execute(cursor, sql, params)
     if not cursor.description:
         return None
@@ -108,7 +108,7 @@ def _fetch_one(cursor, sql, params=None):
 
 
 def _fetch_all(cursor, sql, params=None):
-    """Chay SELECT trong transaction hien tai va tra ve list dict."""
+    """Execute a SELECT within the current transaction and return a list of dicts."""
     _execute(cursor, sql, params)
     if not cursor.description:
         return []
@@ -178,14 +178,14 @@ def _parse_datetime(value, label):
         return value
     text = _require_text(value, label)
     try:
-        # Ho tro dinh dang input datetime-local: 2026-11-13T09:30
+        # Support HTML datetime-local input format: 2026-11-13T09:30
         return datetime.fromisoformat(text.replace('Z', ''))
     except ValueError:
         raise AdminValidationError(f'{label} has invalid datetime format (YYYY-MM-DDTHH:MM).')
 
 
 def _parse_day_of_week(value):
-    """Nhan 2..8 hoac ten thu tieng Anh (Monday..Sunday)."""
+    """Accept 2..8 or English day names (Monday..Sunday)."""
     cleaned = _clean(value)
     if isinstance(cleaned, str) and cleaned.lower() in DAY_VALUES:
         return DAY_VALUES[cleaned.lower()]
@@ -217,13 +217,13 @@ def _to_number(value):
 
 
 # ==========================================================================
-# 1. QUAN LY TAI KHOAN (Users / Students / Lecturers)
+# 1. USER ACCOUNT MANAGEMENT (Users / Students / Lecturers)
 # ==========================================================================
 class AdminUserModel:
 
     @staticmethod
     def list_users(role=None, status=None, keyword=None):
-        """Danh sach tai khoan SV/GV (khong tra ve full password hash)."""
+        """Return Student/Lecturer account list (without exposing full password hash)."""
         sql = """/* q:list_users */
             SELECT u.Id, u.UserCode, u.Username, u.FullName, u.Email, u.Phone,
                    u.Role, u.Status, u.FailedLoginCount, u.PasswordHash, u.CreatedAt,
@@ -256,7 +256,7 @@ class AdminUserModel:
         users = Database.query_all(sql, params or None)
         for user in users:
             full_hash = user.pop('PasswordHash', None) or ''
-            # Chi hien thi mot phan hash de minh hoa viec ma hoa mat khau
+            # Display only a short hash prefix to illustrate password encryption
             user['PasswordHashPreview'] = (full_hash[:18] + '…') if full_hash else ''
         return users
 
@@ -282,7 +282,7 @@ class AdminUserModel:
     def create_user(role, user_code, full_name, email, department, password,
                     username=None, phone=None, administrative_class=None,
                     enrollment_year=None, academic_degree=None):
-        """Them moi tai khoan Sinh vien hoac Giang vien (mat khau duoc bam)."""
+        """Create a new Student or Lecturer account (with hashed password)."""
         role = _require_text(role, 'Role')
         if role not in MANAGEABLE_ROLES:
             raise AdminValidationError('Only Student or Lecturer accounts can be created.')
@@ -355,7 +355,7 @@ class AdminUserModel:
 
     @staticmethod
     def update_user(user_id, full_name, email, department, phone=None, role=None):
-        """Cap nhat thong tin co ban (khong cho phep doi vai tro)."""
+        """Update basic user profile information (role changes are disallowed)."""
         user_id = _to_int(user_id, 'User ID', 1)
         full_name = _require_text(full_name, 'Full name', 100)
         email = _require_text(email, 'Email', 100).lower()
@@ -405,7 +405,7 @@ class AdminUserModel:
 
     @staticmethod
     def set_user_status(user_id, status):
-        """Doi trang thai thu cong Active <-> Locked. Mo khoa se reset FailedLoginCount = 0."""
+        """Manually toggle status Active <-> Locked. Unlocking resets FailedLoginCount = 0."""
         user_id = _to_int(user_id, 'User ID', 1)
         status = _require_text(status, 'Status')
         if status not in USER_STATUSES:
@@ -453,7 +453,7 @@ class AdminUserModel:
 
 
 # ==========================================================================
-# 2. QUAN LY MON HOC (Courses / CoursePrerequisites)
+# 2. COURSE MANAGEMENT (Courses / CoursePrerequisites)
 # ==========================================================================
 class AdminCourseModel:
 
@@ -513,7 +513,7 @@ class AdminCourseModel:
 
     @staticmethod
     def _sync_prerequisite_table(cursor, course_id, prereq_id):
-        """Dong bo bang CoursePrerequisites voi cot Courses.PrerequisiteCourseId."""
+        """Synchronize CoursePrerequisites table with Courses.PrerequisiteCourseId column."""
         _execute(cursor, "/* q:delete_course_prereq */ DELETE FROM dbo.CoursePrerequisites WHERE CourseId = ?",
                  (course_id,))
         if prereq_id:
@@ -593,7 +593,7 @@ class AdminCourseModel:
                 if data['prereq'] == course_id:
                     raise AdminValidationError('A course cannot be its own prerequisite.')
                 AdminCourseModel._ensure_prerequisite_exists(cursor, data['prereq'])
-                # Chong vong lap tien quyet: A -> B -> ... -> A
+                # Prevent circular prerequisite dependencies: A -> B -> ... -> A
                 visited = set()
                 pointer = data['prereq']
                 while pointer and pointer not in visited:
@@ -629,10 +629,10 @@ class AdminCourseModel:
     @staticmethod
     def delete_course(course_id):
         """
-        Xoa mon hoc:
-          - Chan neu con lop hoc phan chua bi huy hoac dang la tien quyet cua mon khac.
-          - Neu mon da tung co lop (da huy) -> xoa mem (IsActive = 0) de giu lich su.
-          - Nguoc lai -> xoa han.
+        Delete a course:
+          - Blocked if there are active (non-cancelled) class sections or active dependent courses.
+          - If the course has historical classes (cancelled) or references -> soft delete (IsActive = 0) to retain history.
+          - Otherwise -> hard delete.
         """
         course_id = _to_int(course_id, 'Course code', 1)
         with Database.get_cursor() as cursor:
@@ -680,7 +680,7 @@ class AdminCourseModel:
 
     @staticmethod
     def toggle_course_status(course_id):
-        """Khoa / Mo khoa mon hoc (IsActive = 0 / 1). Khi khoa, cac lop hoc phan dang mo se dong lai."""
+        """Lock / Unlock a course (IsActive = 0 / 1). Locking closes all currently open class sections."""
         course_id = _to_int(course_id, 'Course ID', 1)
         with Database.get_cursor() as cursor:
             course = _fetch_one(
@@ -704,16 +704,16 @@ class AdminCourseModel:
 
 
 # ==========================================================================
-# 3. THEM / XOA SINH VIEN THU CONG VAO LOP (truong hop dac biet)
+# 3. MANUAL STUDENT ENROLLMENT OVERRIDE (Special Cases)
 # ==========================================================================
 class AdminEnrollmentModel:
 
     @staticmethod
     def manual_override(student_code, class_code, action, admin_user_id=None):
         """
-        Admin them / xoa sinh vien khoi lop hoc phan (bo qua dieu kien thoi gian dang ky
-        va mon tien quyet) nhung van dam bao: lop chua bi huy, con cho trong,
-        khong dang ky trung mon trong cung hoc ky.
+        Manually add/remove a student from a class section (bypasses registration window
+        and prerequisite checks) while still enforcing: section is not cancelled,
+        seats are available, and no duplicate enrollment for the same course in the same semester.
         """
         student_code = _require_text(student_code, 'Student code', 20).upper()
         class_code = _require_text(class_code, 'Class code', 30).upper()
@@ -841,7 +841,7 @@ class AdminEnrollmentModel:
 
 
 # ==========================================================================
-# 4. MO LOP HOC PHAN & HUY LOP < 15 SINH VIEN
+# 4. CLASS SECTION MANAGEMENT & CANCELLATION (< 15 STUDENTS)
 # ==========================================================================
 class AdminClassModel:
 
@@ -874,7 +874,7 @@ class AdminClassModel:
 
     @staticmethod
     def _resolve_lecturer(cursor, lecturer_id=None, lecturer_ref=None):
-        """Tim giang vien theo Id, hoac theo chuoi 'GV001 - Ho Ten' / 'GV001' / 'Ho Ten'."""
+        """Find a lecturer by Id, or by string 'GV001 - Full Name' / 'GV001' / 'Full Name'."""
         lecturer_id = _to_int(lecturer_id, 'Lecturer ID', 1, allow_none=True)
         base_sql = """/* q:lecturer_lookup */
             SELECT u.Id, u.UserCode, u.FullName, u.Status
@@ -901,7 +901,7 @@ class AdminClassModel:
     def create_class(course_id, class_code, semester_id, room, day_of_week, time_slot_id,
                      max_capacity, lecturer_id=None, lecturer_ref=None,
                      min_capacity=MIN_CLASS_ENROLLMENT):
-        """Mo lop hoc phan moi + phan cong giang vien, kiem tra trung phong & trung lich GV."""
+        """Open a new class section and assign a lecturer, checking room & lecturer schedule conflicts."""
         course_id = _to_int(course_id, 'Course ID', 1)
         class_code = _parse_code(class_code, 'Class code', 30)
         semester_id = _to_int(semester_id, 'Semester ID', 1)
@@ -947,7 +947,7 @@ class AdminClassModel:
                     f"Maximum capacity ({max_capacity}) exceeds room {room} capacity ({classroom['Capacity']})."
                 )
 
-            # --- Kiem tra TRUNG PHONG HOC (cung hoc ky, cung thu, cung ca) ---
+            # --- Check ROOM CONFLICT (same semester, same day, same time slot) ---
             room_conflict = _fetch_one(
                 cursor,
                 """/* q:room_conflict */
@@ -960,10 +960,10 @@ class AdminClassModel:
             if room_conflict:
                 raise AdminConflictError(
                     f"Room conflict: room {room} is already booked for class {room_conflict['ClassCode']} "
-                    f"vào {DAY_NAMES[day_of_week]} - {slot['SlotName']}."
+                    f"on {DAY_NAMES[day_of_week]} - {slot['SlotName']}."
                 )
 
-            # --- Kiem tra TRUNG CA GIANG VIEN ---
+            # --- Check LECTURER SCHEDULE CONFLICT ---
             lecturer_conflict = _fetch_one(
                 cursor,
                 """/* q:lecturer_conflict */
@@ -975,7 +975,7 @@ class AdminClassModel:
             if lecturer_conflict:
                 raise AdminConflictError(
                     f"Lecturer schedule conflict: {lecturer['FullName']} is already assigned to class {lecturer_conflict['ClassCode']} "
-                    f"vào {DAY_NAMES[day_of_week]} - {slot['SlotName']}."
+                    f"on {DAY_NAMES[day_of_week]} - {slot['SlotName']}."
                 )
 
             inserted = _fetch_one(
@@ -998,12 +998,12 @@ class AdminClassModel:
     @staticmethod
     def cancel_class(class_id, admin_user_id=None):
         """
-        NGHIEP VU HUY LOP HOC PHAN (< 15 SV) - thuc hien trong MOT transaction:
-          1. Doi trang thai lop trong bang Classes sang 'Cancelled'.
-          2. Chuyen toan bo ban ghi Enrollments 'Enrolled' cua lop sang 'Cancelled'.
-          3. Ghi lich su 'AdminCancelClass' cho tung sinh vien bi anh huong.
-          4. Tinh lai hoc phi cho tung sinh vien bi anh huong.
-        Bat ky buoc nao loi -> rollback toan bo.
+        CANCEL CLASS SECTION (< 15 STUDENTS) - executed in a SINGLE transaction:
+          1. Update the class status in Classes to 'Cancelled'.
+          2. Change all 'Enrolled' records in Enrollments for this class to 'Cancelled'.
+          3. Log 'AdminCancelClass' in RegistrationHistory for each affected student.
+          4. Recalculate tuition fees for each affected student.
+        If any step fails -> roll back the entire transaction.
         """
         class_id = _to_int(class_id, 'Class code', 1)
 
@@ -1029,7 +1029,7 @@ class AdminClassModel:
                 (class_id,),
             )
             student_ids = [row['StudentId'] for row in enrolled_rows]
-            # Lay so lon hon giua bien dem va so ban ghi thuc te de tranh huy nham lop du si so
+            # Use the greater of the counter and actual enrollment count to prevent cancelling viable classes
             enrollment_count = max(course_class.get('CurrentEnrollment') or 0, len(student_ids))
             if enrollment_count >= MIN_CLASS_ENROLLMENT:
                 raise AdminValidationError(
@@ -1037,7 +1037,7 @@ class AdminClassModel:
                     f"(can only cancel classes with fewer than {MIN_CLASS_ENROLLMENT} students)."
                 )
 
-            # Buoc 1: Huy lop
+            # Step 1: Cancel the class section
             _execute(
                 cursor,
                 """/* q:cancel_class */
@@ -1045,7 +1045,7 @@ class AdminClassModel:
                 WHERE Id = ?""",
                 (class_id,),
             )
-            # Buoc 2: Huy toan bo dang ky cua sinh vien trong lop
+            # Step 2: Cancel all active student enrollments in this class
             _execute(
                 cursor,
                 """/* q:cancel_enrollments */
@@ -1053,7 +1053,7 @@ class AdminClassModel:
                 WHERE ClassId = ? AND Status = 'Enrolled'""",
                 (class_id,),
             )
-            # Buoc 3 + 4: Lich su & hoc phi
+            # Step 3 + 4: Audit history & tuition recalculation
             for student_id in student_ids:
                 _execute(
                     cursor,
@@ -1075,7 +1075,7 @@ class AdminClassModel:
 
 
 # ==========================================================================
-# 5. CAU HINH DOT DANG KY (Semesters / RegistrationPeriods)
+# 5. REGISTRATION PERIOD CONFIGURATION (Semesters / RegistrationPeriods)
 # ==========================================================================
 class AdminPeriodModel:
 
@@ -1135,8 +1135,8 @@ class AdminPeriodModel:
     def save_period(semester_id, start_date, end_date, period_name=None,
                     min_credits=DEFAULT_MIN_CREDITS, max_credits=DEFAULT_MAX_CREDITS):
         """
-        Thiet lap dot dang ky moi cho hoc ky: vo hieu hoa dot cu (giu lai lam lich su)
-        va tao dot moi o trang thai Active.
+        Configure a new registration period for the semester: deactivate existing active periods
+        (kept as historical log) and insert the new period in Active status.
         """
         semester_id = _to_int(semester_id, 'Semester ID', 1)
         start = _parse_datetime(start_date, 'Start date')
@@ -1184,7 +1184,7 @@ class AdminPeriodModel:
 
     @staticmethod
     def set_period_active(period_id, is_active):
-        """Mo / dong mot dot dang ky. Moi hoc ky chi co toi da 1 dot Active."""
+        """Open / close a registration period. Each semester can have at most 1 Active period."""
         period_id = _to_int(period_id, 'Registration period ID', 1)
         is_active = bool(is_active) if not isinstance(is_active, str) \
             else is_active.strip().lower() in ('1', 'true', 'yes', 'on')
@@ -1212,13 +1212,13 @@ class AdminPeriodModel:
 
 
 # ==========================================================================
-# 6. BAO CAO THONG KE
+# 6. REGISTRATION STATISTICS & REPORTS
 # ==========================================================================
 class AdminReportModel:
 
     @staticmethod
     def section_report(semester_id):
-        """Ty le lap day theo tung lop hoc phan."""
+        """Calculate capacity fill rate for each class section."""
         sections = AdminClassModel.list_classes(semester_id)
         for item in sections:
             max_cap = item.get('MaxCapacity') or 0
@@ -1228,7 +1228,7 @@ class AdminReportModel:
 
     @staticmethod
     def student_report(semester_id):
-        """Danh sach lop da dang ky va tong tin chi cua tung sinh vien trong hoc ky."""
+        """Return enrolled classes and total registered credits per student for the semester."""
         semester_id = _to_int(semester_id, 'Semester ID', 1)
         rows = Database.query_all(
             """/* q:student_report */
@@ -1302,7 +1302,7 @@ class AdminReportModel:
 
 
 # ==========================================================================
-# 7. DU LIEU TRA CUU CHO FORM
+# 7. LOOKUP REFERENCE DATA FOR FORMS
 # ==========================================================================
 class AdminLookupModel:
 

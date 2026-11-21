@@ -1,17 +1,17 @@
 """
 controllers/admin_controller.py
 ===============================
-Controller cho PHAN HE ADMIN (Quan tri he thong).
+Controller for the ADMIN PORTAL (System Administration).
 
-Gom 2 nhom route (tien to /admin):
-  1. Route render giao dien HTML (adminView/*.html).
-     Ho tro ca dang ngan (/admin/users) va dang ten file (/admin/admin-users.html)
-     vi sidebar trong template dang dung link tuong doi "admin-users.html".
-  2. Route API JSON (/admin/api/...) duoc static/js/admin.js goi bang fetch.
+Contains 2 route groups (prefix /admin):
+  1. HTML view rendering routes (adminView/*.html).
+     Supports both short paths (/admin/users) and file-based paths (/admin/admin-users.html)
+     since the sidebar in templates uses relative links like "admin-users.html".
+  2. JSON API routes (/admin/api/...) called by static/js/admin.js via fetch.
 
-Dinh dang phan hoi API:
-  Thanh cong: {"success": true,  "message": "...", "data": ...}
-  That bai  : {"success": false, "message": "..."}  + HTTP 400/401/403/404/409/500
+API response format:
+  Success: {"success": true,  "message": "...", "data": ...}
+  Failure: {"success": false, "message": "..."}  + HTTP 400/401/403/404/409/500
 """
 
 from datetime import date, datetime, time
@@ -38,8 +38,8 @@ admin_bp = Blueprint('admin_bp', __name__, url_prefix='/admin')
 
 
 # ==========================================================================
-# BAO VE PHAN HE: chi tai khoan co role = 'Admin' moi duoc truy cap /admin/*
-# (lop bao ve bo sung, ben canh middleware RBAC chung cua module Auth)
+# PORTAL PROTECTION: only accounts with role = 'Admin' can access /admin/*
+# (additional guard layer alongside the global Auth RBAC middleware)
 # ==========================================================================
 @admin_bp.before_request
 def ensure_admin_role():
@@ -53,10 +53,10 @@ def ensure_admin_role():
 
 
 # ==========================================================================
-# HAM TRO GIUP
+# HELPER FUNCTIONS
 # ==========================================================================
 def _jsonable(value):
-    """Chuyen datetime / time / Decimal ... ve kieu JSON hop le."""
+    """Convert datetime / time / Decimal / bytes into JSON-serializable types."""
     if isinstance(value, dict):
         return {key: _jsonable(val) for key, val in value.items()}
     if isinstance(value, (list, tuple)):
@@ -83,14 +83,14 @@ def api_error(message, status=400):
 
 
 def api_endpoint(func):
-    """Bat loi tap trung cho moi API: loi nghiep vu -> 4xx, loi he thong -> 500."""
+    """Centralized error handler for all APIs: business errors -> 4xx, system errors -> 500."""
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except AdminError as exc:
             return api_error(exc.message, exc.status_code)
-        except Exception as exc:  # pragma: no cover - phong khi loi CSDL ngoai du kien
+        except Exception as exc:  # pragma: no cover - fallback for unexpected DB errors
             if type(exc).__name__ == 'IntegrityError':
                 return api_error('Database constraint violation (duplicate or foreign key error).', 409)
             current_app.logger.exception('Admin API error: %s', exc)
@@ -120,7 +120,7 @@ def _semester_id_arg():
 
 
 # ==========================================================================
-# 1. ROUTE RENDER GIAO DIEN
+# 1. HTML VIEW RENDERING ROUTES
 # ==========================================================================
 @admin_bp.route('/')
 def admin_home():
@@ -160,12 +160,12 @@ def reports_page():
 @admin_bp.route('/logout')
 @admin_bp.route('/admin-login.html')
 def admin_logout():
-    """Nut 'Log Out' tren sidebar -> chuyen sang route dang xuat chung cua module Auth."""
+    """Sidebar 'Log Out' button -> redirect to the shared Auth logout route."""
     return redirect('/logout')
 
 
 # ==========================================================================
-# 2. API: THONG TIN CHUNG & TRA CUU
+# 2. API: GENERAL INFO & LOOKUPS
 # ==========================================================================
 @admin_bp.route('/api/me', methods=['GET'])
 @api_endpoint
@@ -203,7 +203,7 @@ def api_classrooms():
 
 
 # ==========================================================================
-# 3. API: QUAN LY TAI KHOAN
+# 3. API: USER ACCOUNT MANAGEMENT
 # ==========================================================================
 @admin_bp.route('/api/users', methods=['GET'])
 @api_endpoint
@@ -274,7 +274,7 @@ def api_toggle_user_status(user_id):
 
 
 # ==========================================================================
-# 4. API: QUAN LY MON HOC & GHI DANH THU CONG
+# 4. API: COURSE MANAGEMENT & MANUAL ENROLLMENT OVERRIDE
 # ==========================================================================
 def _course_kwargs(data):
     return dict(
@@ -345,7 +345,7 @@ def api_manual_override():
 
 
 # ==========================================================================
-# 5. API: LOP HOC PHAN
+# 5. API: CLASS SECTIONS
 # ==========================================================================
 @admin_bp.route('/api/classes', methods=['GET'])
 @api_endpoint
@@ -382,7 +382,7 @@ def api_cancel_class(class_id):
 
 
 # ==========================================================================
-# 6. API: DOT DANG KY
+# 6. API: REGISTRATION PERIODS
 # ==========================================================================
 @admin_bp.route('/api/periods', methods=['GET'])
 @api_endpoint
@@ -420,7 +420,7 @@ def api_set_period_active(period_id):
 
 
 # ==========================================================================
-# 7. API: BAO CAO THONG KE
+# 7. API: REGISTRATION STATISTICS & REPORTS
 # ==========================================================================
 @admin_bp.route('/api/reports', methods=['GET'])
 @api_endpoint
@@ -441,12 +441,12 @@ def api_student_report():
 
 
 # ==========================================================================
-# 7. DOI MAT KHAU TAI KHOAN QUAN TRI VIEN (ADMIN)
+# 8. API: ADMIN ACCOUNT PASSWORD CHANGE
 # ==========================================================================
 @admin_bp.route('/api/change-password', methods=['POST'])
 @api_endpoint
 def api_change_password():
-    """Đổi mật khẩu tài khoản Admin."""
+    """Change the password for the currently logged-in Admin account."""
     data = request.get_json(silent=True) or request.form or {}
     cur_pwd = data.get('current_password', '')
     new_pwd = data.get('new_password', '')
