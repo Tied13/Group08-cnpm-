@@ -145,8 +145,8 @@ class Database:
                     print(f"[+] Ket noi Microsoft SQL Server ({Config.DB_DATABASE}) thanh cong!")
                     return True
         except Exception as e:
-            print(f"[!] Loi ket noi CSDL SQL Server: {e}")
-            print(f"    Vui long kiem tra chuoi ket noi: {Config.get_connection_string()}")
+            print(f"[!] SQL Server database connection error: {e}")
+            print(f"    Please check the connection string: {Config.get_connection_string()}")
             return False
 
 

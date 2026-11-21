@@ -9,16 +9,16 @@ from controllers.student_controller import student_bp
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.config.from_object(Config)
 
-# Dong ket noi sau moi request (neu co)
+# Contract after each request (if any)
 app.teardown_appcontext(close_db)
 
-# Dang ky cac Blueprints cho he thong
+# Register Blueprints for the system
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(lecturer_bp)
 app.register_blueprint(student_bp)
 
-# Route mac dinh: Chuyen huong ve trang dang nhap
+# Redirect to the login page
 @app.route('/')
 def index():
     return redirect(url_for('auth.login'))

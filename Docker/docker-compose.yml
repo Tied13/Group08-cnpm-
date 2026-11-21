@@ -1,17 +1,5 @@
-# ============================================================
-# docker-compose.yml - Course Registration System (Group 08)
-# Chạy toàn bộ hệ thống (SQL Server 2022 + Flask Web App)
-#
-# Cách chạy:
-#   cd Docker
-#   docker compose up -d
-#
-# Xem log:
-#   docker compose logs -f
-# ============================================================
-
 services:
-  # ── 1. Dịch vụ Microsoft SQL Server 2022 Chính thức ────────
+  # ── 1. Official Microsoft SQL Server 2022 Service ────────
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: cnpm_sqlserver
@@ -22,7 +10,7 @@ services:
       SA_PASSWORD: "StrongPass@2026"
       MSSQL_PID: "Developer"
     ports:
-      - "1433:1433"   # Kết nối Azure Data Studio / DBeaver bằng localhost,1433
+      - "1433:1433" # Connecting Azure Data Studio / DBeaver using localhost,1433 (with volumes):
     volumes:
       - mssql_data:/var/opt/mssql
     networks:
@@ -39,7 +27,7 @@ services:
       retries: 10
       start_period: 25s
 
-  # ── 2. Tự động Khởi tạo Database & Seed Data ───────────────
+  # ── 2. create Database & Seed Data ───────────────
   db-init:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: cnpm_db_init
@@ -47,28 +35,28 @@ services:
       sqlserver:
         condition: service_healthy
     volumes:
-      - ../init_database.sql:/init_database.sql:ro
+      - ../stage3&4/init_database.sql:/init_database.sql:ro
     networks:
       - cnpm_network
     entrypoint:
       - /bin/bash
       - -c
       - |
-        echo ">> Dang kiem tra SQL Server..."
+        echo ">> checking SQL Server..."
         SQLCMD="/opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P StrongPass@2026 -C -I"
         if ! $$SQLCMD -Q "SELECT 1" > /dev/null 2>&1; then
           SQLCMD="/opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P StrongPass@2026 -I"
         fi
-        
-        echo ">> Dang tu dong chay init_database.sql..."
+
+        echo ">> auto running init_database.sql..."
         $$SQLCMD -i /init_database.sql -b
         echo ">> Khoi tao CSDL CourseRegistrationDB hoan tat!"
 
-  # ── 3. Dịch vụ Flask Web Application ───────────────────────
+  # ── 3. Flask Web Application ───────────────────────
   web:
     build:
-      context: ..
-      dockerfile: Docker/Dockerfile.web
+      context: ../stage3&4
+      dockerfile: ../Docker/Dockerfile.web
     container_name: cnpm_flask_web
     restart: unless-stopped
     environment:
@@ -83,7 +71,7 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ..:/app
+      - ../stage3&4:/app
     depends_on:
       db-init:
         condition: service_completed_successfully
