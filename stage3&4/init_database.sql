@@ -740,7 +740,7 @@ VALUES
 -- 4.6. Insert Classes (CourseClass sections)
 INSERT INTO dbo.Classes (ClassCode, CourseId, SemesterId, LecturerId, ClassroomId, Room, TimeSlotId, DayOfWeek, MinCapacity, MaxCapacity, CurrentEnrollment, Status)
 VALUES
--- Mon học kỳ 1 (2026 - 2027)
+
 (N'IT101_01', 1,  2, 3,  1, N'A101', 1, 2, 15, 50, 0, 'Open'),
 (N'IT101_02', 1,  2, 5,  2, N'A102', 3, 3, 15, 50, 0, 'Open'),
 (N'IT102_01', 2,  2, 5,  3, N'A201', 2, 4, 15, 45, 0, 'Open'),
@@ -763,12 +763,11 @@ VALUES
 (N'AI301_01', 13, 2, 7,  7, N'C101', 2, 2, 15, 35, 0, 'Open'),
 (N'MA101_01', 14, 2, 9,  1, N'A101', 4, 2, 15, 50, 0, 'Open'),
 (N'MA102_01', 15, 2, 9,  2, N'A102', 3, 6, 15, 50, 0, 'Open'),
--- Các lớp đã hoàn thành ở học kỳ trước (SemesterId = 1) để lưu điểm tích lũy và thỏa mãn môn tiên quyết
+
 (N'IT101_PAST', 1, 1, 3, 1, N'A101', 1, 2, 15, 50, 20, 'Closed'),
 (N'IS201_PAST', 4, 1, 3, 1, N'A101', 2, 5, 15, 50, 20, 'Closed');
 
--- 4.7. Seed Historical Completions (Học kỳ 2 2025-2026 - thỏa mãn điều kiện tiên quyết)
--- Sinh viên (Id 11 - 37) đã hoàn thành môn IT101 và IS201 từ học kỳ trước (ClassId: 23 và 24)
+
 INSERT INTO dbo.Enrollments (StudentId, ClassId, EnrolledAt, Status, FinalGrade, IsPassed)
 VALUES
 (11, 23, '2026-01-20 08:00:00', 'Completed', 8.5, 1),
@@ -795,11 +794,10 @@ VALUES
 (12, 24, '2026-01-20 08:00:00', 'Completed', 8.5, 1),
 (33, 24, '2026-01-20 08:00:00', 'Completed', 8.5, 1);
 
--- 4.8. Seed Active Registrations for Current Semester (SemesterId = 2)
--- Đăng ký một số lớp học phần mẫu cho sinh viên
+
 INSERT INTO dbo.Enrollments (StudentId, ClassId, EnrolledAt, Status, FinalGrade, IsPassed)
 VALUES
--- Class 1 (IT101_01 - GV: TS. Lê Hoàng Nam gv_nam): 16 sinh viên
+
 (11, 1, '2026-09-02 08:00:00', 'Enrolled', NULL, 0),
 (12, 1, '2026-09-02 08:05:00', 'Enrolled', NULL, 0),
 (13, 1, '2026-09-02 08:10:00', 'Enrolled', NULL, 0),
@@ -817,7 +815,7 @@ VALUES
 (25, 1, '2026-09-02 09:10:00', 'Enrolled', NULL, 0),
 (33, 1, '2026-09-02 09:15:00', 'Enrolled', NULL, 0),
 
--- Class 3 (IT102_01): 17 sinh viên (>= 15 SV: Đạt chuẩn)
+
 (11, 3, '2026-09-02 08:15:00', 'Enrolled', NULL, 0),
 (12, 3, '2026-09-02 08:20:00', 'Enrolled', NULL, 0),
 (13, 3, '2026-09-02 08:25:00', 'Enrolled', NULL, 0),
@@ -836,7 +834,7 @@ VALUES
 (26, 3, '2026-09-02 09:30:00', 'Enrolled', NULL, 0),
 (33, 3, '2026-09-02 09:35:00', 'Enrolled', NULL, 0),
 
--- Class 5 (IT103_01): 16 sinh viên (>= 15 SV: Đạt chuẩn)
+
 (11, 5, '2026-09-02 09:35:00', 'Enrolled', NULL, 0),
 (12, 5, '2026-09-02 09:40:00', 'Enrolled', NULL, 0),
 (13, 5, '2026-09-02 09:45:00', 'Enrolled', NULL, 0),
@@ -854,7 +852,6 @@ VALUES
 (25, 5, '2026-09-02 10:45:00', 'Enrolled', NULL, 0),
 (33, 5, '2026-09-02 10:50:00', 'Enrolled', NULL, 0),
 
--- Class 7 (IS201_01 - GV: TS. Lê Hoàng Nam gv_nam): 19 sinh viên (>= 15 SV: Đạt chuẩn)
 (11, 7, '2026-09-02 10:50:00', 'Enrolled', NULL, 0),
 (12, 7, '2026-09-02 10:55:00', 'Enrolled', NULL, 0),
 (13, 7, '2026-09-02 11:00:00', 'Enrolled', NULL, 0),
@@ -875,7 +872,6 @@ VALUES
 (28, 7, '2026-09-02 12:15:00', 'Enrolled', NULL, 0),
 (33, 7, '2026-09-02 12:20:00', 'Enrolled', NULL, 0),
 
--- Class 10 (IS301_01 - GV: TS. Lê Hoàng Nam gv_nam): 17 sinh viên (>= 15 SV: Đạt chuẩn)
 (11, 10, '2026-09-02 13:00:00', 'Enrolled', NULL, 0),
 (12, 10, '2026-09-02 13:05:00', 'Enrolled', NULL, 0),
 (13, 10, '2026-09-02 13:10:00', 'Enrolled', NULL, 0),
@@ -894,7 +890,7 @@ VALUES
 (26, 10, '2026-09-02 14:15:00', 'Enrolled', NULL, 0),
 (33, 10, '2026-09-02 14:20:00', 'Enrolled', NULL, 0),
 
--- Class 21 (MA101_01): 6 sinh viên (< 15 SV: Dành cho Admin thử nghiệm tính năng Hủy lớp ít sinh viên)
+
 (11, 21, '2026-09-02 14:30:00', 'Enrolled', NULL, 0),
 (12, 21, '2026-09-02 14:35:00', 'Enrolled', NULL, 0),
 (13, 21, '2026-09-02 14:40:00', 'Enrolled', NULL, 0),
@@ -908,7 +904,7 @@ VALUES
 (18, 22, '2026-09-02 15:10:00', 'Enrolled', NULL, 0),
 (19, 22, '2026-09-02 15:15:00', 'Enrolled', NULL, 0);
 
--- Đồng bộ biến CurrentEnrollment cho các lớp học phần
+
 UPDATE c
 SET c.CurrentEnrollment = (
     SELECT COUNT(*) 
@@ -917,13 +913,13 @@ SET c.CurrentEnrollment = (
 )
 FROM dbo.Classes c;
 
--- 4.9. Ghi nhận Nhật ký Đăng ký mẫu (RegistrationHistory)
+
 INSERT INTO dbo.RegistrationHistory (StudentId, ClassId, ActionType, ActionTime, PerformedByUserId, Note)
 SELECT StudentId, ClassId, 'Register', EnrolledAt, StudentId, N'Online course registration successful'
 FROM dbo.Enrollments
 WHERE Status = 'Enrolled';
 
--- 4.10. Tự động tính toán Bảng kê Học phí (Tuitions) cho toàn bộ sinh viên
+
 DECLARE @StuId INT;
 DECLARE cur_Tuition CURSOR LOCAL FAST_FORWARD FOR SELECT UserId FROM dbo.Students;
 OPEN cur_Tuition;
