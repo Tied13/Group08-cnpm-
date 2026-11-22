@@ -1,14 +1,14 @@
 /* ==========================================================================
-   static/js/student.js  -  PHÂN HỆ SINH VIÊN (Student Portal)
-   Hệ thống Đăng ký Môn học (Course Registration System)
+   static/js/student.js  -  STUDENT PORTAL
+   Course Registration System
 
-   Chức năng:
-     1. Tra cứu & Đăng ký môn học (kiểm tra 4 điều kiện nghiêm ngặt).
-     2. Hủy đăng ký môn học (modal xác nhận, giảm sĩ số, hoàn tín chỉ).
-     3. Thời khóa biểu dạng lưới tuần & điều hướng tuần (This Week, Prev, Next).
-     4. Tính toán và bảng kê học phí tự động theo đơn giá tín chỉ.
-     5. Lịch sử giao dịch đăng ký môn học (Audit Log).
-     6. Quản lý hồ sơ sinh viên & đổi mật khẩu tài khoản.
+   Features:
+1. Course search & registration (strict 4-condition validation).
+2. Drop course registration (confirmation modal, decrement seat count, release credits).
+3. Weekly grid timetable & week navigation (This Week, Prev, Next).
+4. Automated tuition calculation & statement based on per-credit rate.
+5. Registration transaction history (Audit Log).
+6. Student profile management & account password change.
    ========================================================================== */
 
 const STU_API = '/student/api';
@@ -27,7 +27,7 @@ const studentState = {
     paging: {},
 };
 
-/* ------------------------------ TIỆN ÍCH CHUNG ------------------------------ */
+/* ------------------------------ SHARED UTILITIES ------------------------------ */
 function stuEl(id) {
     return document.getElementById(id);
 }
@@ -77,7 +77,7 @@ function _fmt_time(val) {
     return String(val);
 }
 
-/* Hiển thị Toast / Banner thông báo */
+/* Display Toast / Notification Banner */
 let stuBannerTimer = null;
 function showFeedback(bannerId, message, type = 'success') {
     const el = stuEl(bannerId);
@@ -135,7 +135,7 @@ async function stuPost(path, data) {
     }
 }
 
-/* Phân trang (Pagination) */
+/* Pagination */
 function stuPaginate(key, items, containerId, renderRows) {
     const box = stuEl(containerId);
     const p = studentState.paging[key] || (studentState.paging[key] = { page: 1, size: 10 });
@@ -184,10 +184,10 @@ function stuPaginate(key, items, containerId, renderRows) {
 
 
 /* ==========================================================================
-   1. TRA CỨU & ĐĂNG KÝ MÔN HỌC (courses.html)
+1. COURSE SEARCH & REGISTRATION (courses.html)
    ========================================================================== */
 
-/* Nạp dropdown danh mục học kỳ */
+/* Populate semester dropdown */
 async function loadSemestersDropdown(selectId, onSelectCallback) {
     const sel = stuEl(selectId);
     if (!sel) return;
@@ -218,7 +218,7 @@ async function loadSemestersDropdown(selectId, onSelectCallback) {
     };
 }
 
-/* Nạp toàn bộ danh mục lớp học phần & các lớp đã đăng ký */
+/* Load available class sections & enrolled classes */
 async function loadCourseModules() {
     const semSelect = stuEl('semester');
     if (semSelect && semSelect.options.length <= 2 && !studentState.semesters.length) {
@@ -237,7 +237,7 @@ async function loadCourseModules() {
     studentState.availableClasses = data.classes || [];
     studentState.registeredClasses = data.registered_classes || [];
 
-    // Cập nhật số tín chỉ đã đăng ký trên Top Bar
+    // Update enrolled credit count in the top bar
     const creditsPill = stuEl('user-registered-credits');
     if (creditsPill) {
         creditsPill.textContent = data.current_credits;
@@ -260,24 +260,24 @@ async function loadCourseModules() {
     renderRegisteredCourses();
 }
 
-/* Lọc lớp học phần (Search & Filter) */
+/* Filter class sections (Search & Filter) */
 function filterRows() {
     const q = (stuEl('q-input')?.value || '').toLowerCase().trim();
     const day = stuEl('day-select')?.value || '';
     const seat = stuEl('seat-select')?.value || '';
 
     studentState.filteredAvailable = studentState.availableClasses.filter((c) => {
-        // Lọc từ khóa: Mã môn, Tên môn, Lớp học phần, Giảng viên
+        // Keyword filter: Course code, course name, class section code, lecturer
         const matchQ = !q ||
             c.CourseCode.toLowerCase().includes(q) ||
             c.CourseName.toLowerCase().includes(q) ||
             c.ClassCode.toLowerCase().includes(q) ||
             (c.LecturerName && c.LecturerName.toLowerCase().includes(q));
 
-        // Lọc theo ngày trong tuần
+        // Filter by day of week
         const matchDay = !day || c.DayName === day;
 
-        // Lọc theo tình trạng chỗ trống
+        // Filter by seat availability
         let matchSeat = true;
         if (seat === 'open') {
             matchSeat = c.RemainingSeats > 0 && !c.IsFull;
@@ -291,7 +291,7 @@ function filterRows() {
     renderAvailableCourses();
 }
 
-/* Hiển thị bảng các lớp học phần đang mở */
+/* Render open class sections table */
 function renderAvailableCourses() {
     const tbody = stuEl('available-courses-tbody');
     const emptyMsg = stuEl('empty-search');
@@ -306,7 +306,7 @@ function renderAvailableCourses() {
 
     stuPaginate('available', studentState.filteredAvailable, 'course-pagination', (rows) => {
         tbody.innerHTML = rows.map((c) => {
-            // Nút hành động tương ứng với trạng thái
+            // Action button based on registration status
             let actionHtml = '';
             if (c.IsEnrolled) {
                 actionHtml = `<span class="badge badge-success" style="padding:6px 10px; font-weight:700;">Enrolled</span>`;
@@ -330,14 +330,14 @@ function renderAvailableCourses() {
                 `;
             }
 
-            // Hiển thị sĩ số và chỗ trống
+            // Capacity and remaining seats badge
             const seatBadge = c.RemainingSeats <= 0
                 ? `<span class="badge badge-danger">Full (0/${c.MaxCapacity})</span>`
                 : (c.RemainingSeats <= 5
                     ? `<span class="badge badge-warning">${c.RemainingSeats}/${c.MaxCapacity} left</span>`
                     : `<span class="badge badge-info">${c.RemainingSeats}/${c.MaxCapacity} left</span>`);
 
-            // Hiển thị môn tiên quyết
+            // Prerequisite status display
             const prereqDisplay = c.PrerequisiteCode
                 ? (c.PrerequisiteMet
                     ? `<span style="color:var(--success); font-weight:600;">✓ ${escapeHtml(c.PrerequisiteCode)}</span>`
@@ -370,7 +370,7 @@ function renderAvailableCourses() {
     });
 }
 
-/* Hiển thị bảng các môn học đã đăng ký trong kỳ */
+/* Render enrolled courses table for the semester */
 function renderRegisteredCourses() {
     const tbody = stuEl('registered-courses-tbody');
     const emptyMsg = stuEl('empty-registered');
@@ -409,7 +409,7 @@ function renderRegisteredCourses() {
     });
 }
 
-/* Thực thi Đăng ký môn học */
+/* Register for a class section */
 async function registerCourse(classId) {
     const res = await stuPost('/register', { class_id: classId });
     if (res && res.success) {
@@ -423,7 +423,7 @@ async function registerCourse(classId) {
 
 
 /* ==========================================================================
-   2. HỦY ĐĂNG KÝ MÔN HỌC (Modal & Confirm)
+2. DROP COURSE REGISTRATION (Modal & Confirm)
    ========================================================================== */
 function openCancel(classId, courseCode, courseName, classCode) {
     studentState.cancelingClassId = classId;
@@ -465,7 +465,7 @@ async function confirmCancel() {
 
 
 /* ==========================================================================
-   3. THỜI KHÓA BIỂU DẠNG LƯỚI TUẦN (timetable.html)
+3. WEEKLY GRID TIMETABLE (timetable.html)
    ========================================================================== */
 function onSemesterChange() {
     studentState.week = null;
@@ -524,13 +524,13 @@ async function loadTimetable() {
     studentState.week = data.week.week;
     studentState.totalWeeks = data.week.total_weeks;
 
-    // Cập nhật nhãn tuần & ngày tháng
+    // Update week & date range labels
     stuSetText('current-week-display', `Week ${data.week.week} / ${data.week.total_weeks}`);
     stuSetText('week-date-range',
         `Weekly Schedule: ${formatDate(data.week.week_start)} - ${formatDate(data.week.week_end)} (Semester: ${data.semester.SemesterName})`);
     stuSetText('enrolled-count', `${data.total_enrolled} Classes (${data.total_credits} Credits)`);
 
-    // Render lưới thời khóa biểu
+    // Render timetable grid
     const days = data.days || [];
     const slots = data.slots || [];
     const sessions = data.sessions || [];
@@ -587,7 +587,7 @@ async function loadTimetable() {
 
 
 /* ==========================================================================
-   4. BẢNG KÊ HỌC PHÍ TỰ ĐỘNG (tuition.html)
+4. AUTOMATED TUITION STATEMENT (tuition.html)
    ========================================================================== */
 async function loadTuitionData() {
     const semSelect = stuEl('sem-fee');
@@ -606,7 +606,7 @@ async function loadTuitionData() {
     const data = res.data;
     const s = data.summary;
 
-    // Cập nhật 4 thẻ thống kê
+    // Update the 4 summary cards
     stuSetText('stat-total-courses', `${s.total_courses} Courses`);
     stuSetText('stat-total-credits', `${s.total_credits} Credits`);
     stuSetText('stat-rate', `${formatCurrency(s.unit_price)} / credit`);
@@ -618,7 +618,7 @@ async function loadTuitionData() {
         statusBadge.className = `badge ${s.payment_status === 'Paid' ? 'badge-success' : (s.payment_status === 'Partial' ? 'badge-warning' : 'badge-primary')}`;
     }
 
-    // Render danh sách chi tiết từng môn
+    // Render itemized course breakdown
     const tbody = stuEl('tuition-tbody');
     const emptyMsg = stuEl('tuition-empty');
     if (!tbody) return;
@@ -647,7 +647,7 @@ async function loadTuitionData() {
 
 
 /* ==========================================================================
-   5. LỊCH SỬ GIAO DỊCH ĐĂNG KÝ MÔN HỌC (history.html)
+5. REGISTRATION TRANSACTION HISTORY (history.html)
    ========================================================================== */
 async function loadHistoryData() {
     const filter = stuEl('history-filter')?.value || 'all';
@@ -689,7 +689,7 @@ async function loadHistoryData() {
 
 
 /* ==========================================================================
-   6. QUẢN LÝ HỒ SƠ & ĐỔI MẬT KHẨU (profile.html)
+6. PROFILE MANAGEMENT & PASSWORD CHANGE (profile.html)
    ========================================================================== */
 async function loadProfileData() {
     const res = await stuGet('/me');
@@ -697,7 +697,7 @@ async function loadProfileData() {
     const p = res.data.profile;
     studentState.profile = p;
 
-    // Cập nhật thông tin trong profile.html
+    // Populate profile fields in profile.html
     const infoItems = document.querySelectorAll('.info-list .info-item');
     if (infoItems.length >= 6) {
         infoItems[0].querySelector('strong').textContent = p.StudentCode || p.UserCode;
@@ -724,117 +724,4 @@ async function updatePassword(event) {
         return;
     }
     if (newPw !== conPw) {
-        showFeedback('pw-feedback', 'Password confirmation does not match.', 'danger');
-        return;
-    }
-
-    const res = await stuPost('/change-password', {
-        current_password: curPw,
-        new_password: newPw,
-        confirm_password: conPw
-    });
-
-    if (res && res.success) {
-        showFeedback('pw-feedback', res.message || 'Password updated successfully!', 'success');
-        const cEl = stuEl('cur-pw') || stuEl('current-password');
-        const nEl = stuEl('new-pw') || stuEl('new-password');
-        const cfEl = stuEl('cfm-pw') || stuEl('confirm-password');
-        if (cEl) cEl.value = '';
-        if (nEl) nEl.value = '';
-        if (cfEl) cfEl.value = '';
-    } else {
-        showFeedback('pw-feedback', (res && res.message) || 'Failed to update password.', 'danger');
-    }
-}
-
-
-/* ==========================================================================
-   7. CHI TIẾT MÔN HỌC (course-details.html)
-   ========================================================================== */
-async function loadCourseDetails() {
-    const params = new URLSearchParams(window.location.search);
-    const classId = params.get('class_id');
-    if (!classId) return;
-
-    const res = await stuGet(`/classes/${classId}`);
-    if (!res || !res.success) return;
-    const c = res.data;
-
-    // Cập nhật tiêu đề trang
-    const headerTitle = document.querySelector('.page-header h1');
-    if (headerTitle) {
-        headerTitle.textContent = `${c.CourseCode} - ${c.CourseName}`;
-    }
-
-    // Cập nhật danh sách chi tiết
-    const infoItems = document.querySelectorAll('.info-list .info-item');
-    if (infoItems.length >= 5) {
-        infoItems[0].querySelector('strong').textContent = c.CourseCode;
-        infoItems[1].querySelector('strong').textContent = c.ClassCode;
-        infoItems[2].querySelector('strong').textContent = `${c.Credits} Credits`;
-        infoItems[3].querySelector('strong').textContent = c.LecturerName || 'Unassigned';
-        infoItems[4].querySelector('strong').textContent = `${c.SemesterName} (${c.AcademicYear})`;
-    }
-
-    // Nút đăng ký
-    const regBtn = document.querySelector('.page-header button');
-    if (regBtn) {
-        if (c.IsEnrolled) {
-            regBtn.textContent = 'Already Enrolled';
-            regBtn.className = 'btn btn-soft';
-            regBtn.disabled = true;
-        } else {
-            regBtn.textContent = 'Register For This Class';
-            regBtn.className = 'btn btn-primary';
-            regBtn.onclick = async () => {
-                const r = await stuPost('/register', { class_id: c.Id });
-                const toast = stuEl('detail-toast');
-                if (toast) {
-                    toast.textContent = (r && r.message) || 'Registration result';
-                    toast.className = `toast-banner toast-${r && r.success ? 'success' : 'danger'}`;
-                    toast.classList.remove('hidden');
-                }
-                if (r && r.success) {
-                    setTimeout(() => {
-                        window.location.href = 'courses.html';
-                    }, 1500);
-                }
-            };
-        }
-    }
-}
-
-
-/* ==========================================================================
-   8. KHỞI TẠO TỔNG THỂ (Auto Initialization)
-   ========================================================================== */
-document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Cập nhật User Profile Chip trên Top Bar
-    const userChip = document.querySelector('.user-profile-chip');
-    if (userChip) {
-        const res = await stuGet('/me');
-        if (res && res.success && res.data.profile) {
-            const p = res.data.profile;
-            studentState.profile = p;
-            userChip.innerHTML = `
-                <strong>${escapeHtml(p.FullName)}</strong>
-                <span>Student ID: ${escapeHtml(p.StudentCode || p.UserCode)}</span>
-            `;
-        }
-    }
-
-    // 2. Nhận diện trang hiện tại và kích hoạt hàm tương ứng
-    if (stuEl('available-courses-tbody')) {
-        await loadCourseModules();
-    } else if (stuEl('timetable-board')) {
-        await loadTimetable();
-    } else if (stuEl('tuition-tbody')) {
-        await loadTuitionData();
-    } else if (stuEl('history-tbody')) {
-        await loadHistoryData();
-    } else if (stuEl('pw-feedback')) {
-        await loadProfileData();
-    } else if (window.location.pathname.includes('course-details')) {
-        await loadCourseDetails();
-    }
-});
+        showFeedback('pw-feedback', '
