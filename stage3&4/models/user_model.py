@@ -1,9 +1,9 @@
 """
 models/user_model.py
 ====================
-Tang truy cap CSDL cho nguoi dung he thong (Users), ho tro xac thuc
-dang nhap, khoa tai khoan khi sai qua 5 lan, va doi mat khau.
-Ket noi Microsoft SQL Server qua Database (models/db.py).
+Database access layer for system users (Users), supporting login authentication,
+account lockout after 5 failed attempts, and password updates.
+Connects to Microsoft SQL Server via Database (models/db.py).
 """
 
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -14,8 +14,8 @@ class UserModel:
     @staticmethod
     def find_by_username(username):
         """
-        Tim nguoi dung theo Username, UserCode (Student ID / Lecturer ID / Admin ID), hoac Email.
-        Khong phan biet hoa thuong. Tu dong seed tai khoan mau neu CSDL chua co.
+        Find user by Username, UserCode (Student ID / Lecturer ID / Admin ID), or Email.
+        Case-insensitive. Automatically seeds sample accounts if the database is empty.
         """
         if not username:
             return None
@@ -36,7 +36,7 @@ class UserModel:
         # Standard Werkzeug hash for default password 123456
         correct_hash = 'scrypt:32768:8:1$E6TmpjVgQDqaUiav$d79ab1a034cfa9fb797e97766269d438b521dd7718a4288eff2611315e524e6a6e4eb8a31d0777a975cb595cacd42b13b9b3a74bdb755bcbeb18c1eb4f2fcf23'
 
-        # Danh sach tai khoan mau
+        # Sample user accounts
         sample_users = {
             'admin': ('ADM001', 'admin', 'Nguyễn Văn Quản', 'admin@uth.edu.vn', 'Admin'),
             'adm001': ('ADM001', 'admin', 'Nguyễn Văn Quản', 'admin@uth.edu.vn', 'Admin'),
@@ -63,7 +63,7 @@ class UserModel:
             except Exception as e:
                 print(f"[!] Auto-seed error for {uname}: {e}")
 
-            # Emergency fallback dict dam bao dang nhap khong bi chan
+            # Emergency fallback dict to ensure login is not blocked
             return {
                 'Id': 1,
                 'UserCode': code,
@@ -80,7 +80,7 @@ class UserModel:
 
     @staticmethod
     def find_by_id(user_id):
-        """Tim nguoi dung theo ID khoa chinh."""
+        """Find user by primary key ID."""
         if not user_id:
             return None
         sql = "SELECT * FROM dbo.Users WHERE Id = ?"
@@ -88,7 +88,7 @@ class UserModel:
 
     @staticmethod
     def update_password(user_id, new_password):
-        """Cap nhat mat khau moi (tu dong bam bang werkzeug scrypt/pbkdf2)."""
+        """Update new password (automatically hashed using werkzeug scrypt/pbkdf2)."""
         if not str(new_password).startswith(('scrypt:', 'pbkdf2:')):
             pw_hash = generate_password_hash(new_password)
         else:
@@ -99,9 +99,9 @@ class UserModel:
     @staticmethod
     def verify_password(stored_password, provided_password):
         """
-        Kiem tra mat khau hop le.
-        Ho tro chuoi bam Werkzeug (scrypt/pbkdf2), SHA-256, plain-text fallback
-        va mat khau mac dinh '123456' cho toan bo tai khoan he thong.
+        Verify if the provided password is valid.
+        Supports Werkzeug hashes (scrypt/pbkdf2), SHA-256, plain-text fallback,
+        and default password '123456' for all system accounts.
         """
         if not provided_password:
             return False
@@ -111,18 +111,18 @@ class UserModel:
         if not stored_password:
             return False
 
-        # 1. Kiem tra theo chuan Werkzeug (scrypt / pbkdf2)
+        # 1. Verify using Werkzeug standard (scrypt / pbkdf2)
         try:
             if check_password_hash(stored_password, clean_pwd):
                 return True
         except Exception:
             pass
 
-        # 3. Kiem tra chuoi plain text
+        # 3. Verify plain-text string
         if stored_password == clean_pwd:
             return True
 
-        # 4. Kiem tra SHA-256 fallback
+        # 4. Verify SHA-256 fallback
         try:
             import hashlib
             if stored_password == hashlib.sha256(clean_pwd.encode('utf-8')).hexdigest():
@@ -130,7 +130,7 @@ class UserModel:
         except Exception:
             pass
 
-        # 4. Fallback dac biet cho placeholder seed hash tu init_database.sql
+        # 4. Special fallback for placeholder seed hash from init_database.sql
         if stored_password.strip() == 'scrypt:32768:8:1' and provided_password == '123456':
             return True
 
@@ -138,7 +138,7 @@ class UserModel:
 
     @staticmethod
     def increment_failed_login(user_id, current_count=0):
-        """Tang so lan dang nhap sai, khoa tai khoan neu >= 5 lan."""
+        """Increment failed login attempts and lock account if >= 5 attempts."""
         new_count = current_count + 1
         new_status = 'Locked' if new_count >= 5 else 'Active'
         sql = "UPDATE dbo.Users SET FailedLoginCount = ?, Status = ?, UpdatedAt = SYSDATETIME() WHERE Id = ?"
@@ -146,12 +146,12 @@ class UserModel:
 
     @staticmethod
     def reset_failed_login(user_id):
-        """Reset so lan dang nhap sai ve 0."""
+        """Reset failed login count to 0."""
         sql = "UPDATE dbo.Users SET FailedLoginCount = 0, UpdatedAt = SYSDATETIME() WHERE Id = ?"
         return Database.execute(sql, (user_id,))
 
     @staticmethod
     def unlock_user(user_id):
-        """Mo khoa tai khoan nguoi dung."""
+        """Unlock user account."""
         sql = "UPDATE dbo.Users SET Status = 'Active', FailedLoginCount = 0, UpdatedAt = SYSDATETIME() WHERE Id = ?"
         return Database.execute(sql, (user_id,))
