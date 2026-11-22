@@ -3,22 +3,22 @@ from models.user_model import UserModel
 
 auth_bp = Blueprint('auth', __name__)
 
-# --- RBAC MIDDLEWARE: Chặn chéo quyền Admin / GV / SV ---
+# --- RBAC MIDDLEWARE: Block cross-role access Admin / Lecturer / Student ---
 @auth_bp.before_app_request
 def rbac_middleware():
     path = request.path
     
-    # Cho phép các route công khai truy cập tự do
+    # Allow public routes to be accessed freely
     public_paths = ['/login', '/logout', '/static']
     if any(path.startswith(p) for p in public_paths) or path == '/':
         return
 
-    # Kiểm tra xem người dùng đã đăng nhập chưa
+    # Check if the user is logged in
     if 'user_id' not in session:
         flash('Please log in to continue.', 'warning')
         return redirect(url_for('auth.login'))
 
-    # Kiểm tra xem tài khoản có bị khóa không
+    # Check if the account is locked
     try:
         current_user = UserModel.find_by_id(session['user_id'])
         if current_user and current_user.get('Status') == 'Locked':
@@ -30,12 +30,12 @@ def rbac_middleware():
 
     role = session.get('role')  # 'Admin', 'Lecturer', 'Student'
 
-    # Chặn sinh viên hoặc giảng viên cố tình truy cập đường dẫn của Admin
+    # Block students or lecturers from intentionally accessing Admin routes
     if path.startswith('/admin') and role != 'Admin':
         flash('Access denied: You do not have permission to access Admin Portal.', 'danger')
         return redirect(url_for('auth.dashboard'))
 
-    # Chặn sinh viên truy cập đường dẫn của Giảng viên
+    # Block students from accessing Lecturer routes
     if path.startswith('/lecturer') and role not in ['Admin', 'Lecturer']:
         flash('Access denied: You do not have permission to access Lecturer Portal.', 'danger')
         return redirect(url_for('auth.dashboard'))
@@ -45,7 +45,7 @@ def rbac_middleware():
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    # Nếu đã đăng nhập thì chuyển hướng ngay về đúng phân hệ
+    # Redirect immediately to the right module if already logged in
     if request.method == 'GET' and 'user_id' in session and session.get('role'):
         return redirect(url_for('auth.dashboard'))
 
@@ -71,14 +71,14 @@ def login():
             flash(f"Account '{username}' not found in the system! Please try sample accounts: admin, admin_daotao, gv_nam, sv_nam, sv_an", 'danger')
             return render_template('login.html')
 
-        # Kiểm tra xem tài khoản có bị khóa không
+        # Check if the account is locked
         if user.get('Status') == 'Locked':
             flash(f"Account '{username}' is locked. Please contact the administrator for assistance.", 'danger')
             return render_template('login.html')
 
-        # So khớp mật khẩu
+        # Verify password
         if UserModel.verify_password(user.get('PasswordHash'), password):
-            # Đăng nhập đúng: Reset số lần sai và lưu session
+            # Login successful: Reset failed login attempts and save session
             try:
                 UserModel.reset_failed_login(user['Id'])
             except Exception:
@@ -90,7 +90,7 @@ def login():
             session['full_name'] = user.get('FullName', user['Username'])
             session['role'] = str(user.get('Role') or 'Admin').strip()
 
-            # Chuyển hướng trực tiếp vào phân hệ phù hợp
+            # Redirect directly to the appropriate module
             if session['role'] == 'Admin':
                 return redirect(url_for('admin_bp.admin_home'))
             elif session['role'] == 'Lecturer':
@@ -118,7 +118,7 @@ def logout():
 
 @auth_bp.route('/dashboard')
 def dashboard():
-    """Điều hướng người dùng về đúng phân hệ theo vai trò (Role-based Routing)."""
+    """Redirect user to the appropriate module by role (Role-based Routing)."""
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
     
