@@ -1,23 +1,23 @@
 """
 controllers/student_controller.py
 ==================================
-Controller cho PHÂN HỆ SINH VIÊN (Student Portal).
-Hệ thống Đăng ký Môn học (Course Registration System).
+Controller for the STUDENT PORTAL module.
+Course Registration System.
 
-Gồm 2 nhóm route (tiền tố /student):
-  1. Route render giao diện HTML (studentView/*.html):
-     - /student/courses, /student/courses.html (Tra cứu & Đăng ký môn học)
-     - /student/course-details, /student/course-details.html (Chi tiết lớp học phần)
-     - /student/timetable, /student/timetable.html (Thời khóa biểu theo tuần)
-     - /student/tuition, /student/tuition.html (Bảng kê học phí tự động)
-     - /student/history, /student/history.html (Lịch sử giao dịch đăng ký/hủy)
-     - /student/profile, /student/profile.html (Quản lý hồ sơ cá nhân & đổi mật khẩu)
-  2. Route API JSON (/student/api/...):
-     - Giao tiếp dữ liệu với static/js/student.js bằng Fetch API.
+Includes two route groups (prefix /student):
+1. HTML template routes (studentView/*.html):
+  - /student/courses, /student/courses.html (Course search & registration)
+  - /student/course-details, /student/course-details.html (Class section details)
+  - /student/timetable, /student/timetable.html (Weekly timetable)
+  - /student/tuition, /student/tuition.html (Automated tuition statement)
+  - /student/history, /student/history.html (Registration/drop transaction history)
+  - /student/profile, /student/profile.html (Profile management & password change)
+2. JSON API routes (/student/api/...):
+  - Communicates data with static/js/student.js via Fetch API.
 
-Định dạng phản hồi API:
-  Thành công: {"success": true, "message": "...", "data": ...}
-  Thất bại  : {"success": false, "message": "..."} + HTTP 400/401/403/404/409/500
+API response format:
+  Success: {"success": true, "message": "...", "data": ...}
+  Failure: {"success": false, "message": "..."} + HTTP 400/401/403/404/409/500
 """
 
 from datetime import date, datetime, time
@@ -46,8 +46,8 @@ student_bp = Blueprint('student_bp', __name__, url_prefix='/student')
 
 
 # ==========================================================================
-# BẢO VỆ PHÂN HỆ (RBAC Guard)
-# Chỉ tài khoản có role = 'Student' mới được truy cập /student/*
+# MODULE ACCESS GUARD (RBAC Guard)
+# Only accounts with role = 'Student' can access /student/*
 # ==========================================================================
 @student_bp.before_request
 def ensure_student_role():
@@ -61,10 +61,10 @@ def ensure_student_role():
 
 
 # ==========================================================================
-# HÀM TRỢ GIÚP DÙNG CHUNG
+# SHARED HELPER FUNCTIONS
 # ==========================================================================
 def _jsonable(value):
-    """Chuyển đổi kiểu dữ liệu datetime / time / Decimal về JSON hợp lệ."""
+    """Convert datetime / time / Decimal values to JSON-serializable types."""
     if isinstance(value, dict):
         return {key: _jsonable(val) for key, val in value.items()}
     if isinstance(value, (list, tuple)):
@@ -91,7 +91,7 @@ def api_error(message, status=400):
 
 
 def api_endpoint(func):
-    """Bắt lỗi tập trung cho API: lỗi nghiệp vụ -> HTTP tương ứng (400, 404, 409...), lỗi khác -> 500."""
+    """Centralized error handling for APIs: business errors -> matching HTTP status (400, 404, 409...), other errors -> 500."""
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -109,7 +109,7 @@ def _student_id():
 
 
 def _semester_id_arg():
-    """Lấy semester_id từ query parameter, nếu không có lấy học kỳ hiện hành."""
+    """Get semester_id from query parameter; fallback to the current active semester."""
     sem_id = request.args.get('semester_id', type=int)
     if sem_id:
         return sem_id
@@ -120,7 +120,7 @@ def _semester_id_arg():
 
 
 def _payload():
-    """Lấy dữ liệu JSON hoặc Form từ request."""
+    """Extract JSON or Form data from the request."""
     data = request.get_json(silent=True)
     if isinstance(data, dict):
         return data
@@ -128,7 +128,7 @@ def _payload():
 
 
 # ==========================================================================
-# 1. ROUTE RENDER GIAO DIỆN HTML (studentView/*.html)
+# 1. HTML TEMPLATE ROUTES (studentView/*.html)
 # ==========================================================================
 @student_bp.route('/')
 def student_home():
@@ -181,11 +181,11 @@ def student_logout():
 # 2. API ENDPOINTS (/student/api/...)
 # ==========================================================================
 
-# 2.1. Thông tin sinh viên & Học kỳ
+# 2.1. Student info & Semesters
 @student_bp.route('/api/me', methods=['GET'])
 @api_endpoint
 def api_me():
-    """Lấy thông tin tài khoản và hồ sơ sinh viên đang đăng nhập."""
+    """Get account and profile information for the currently logged-in student."""
     profile = StudentProfileModel.get_profile(_student_id())
     curr_sem = StudentLookupModel.get_current_semester()
     return api_success({
@@ -197,7 +197,7 @@ def api_me():
 @student_bp.route('/api/semesters', methods=['GET'])
 @api_endpoint
 def api_semesters():
-    """Danh mục học kỳ và học kỳ hiện hành."""
+    """List semesters and the current active semester."""
     semesters = StudentLookupModel.get_semesters()
     curr_sem = StudentLookupModel.get_current_semester()
     return api_success({
@@ -206,13 +206,13 @@ def api_semesters():
     })
 
 
-# 2.2. Danh mục lớp học phần & Trạng thái đăng ký
+# 2.2. Course catalog & Registration status
 @student_bp.route('/api/courses', methods=['GET'])
 @api_endpoint
 def api_courses():
     """
-    Hiển thị danh mục các lớp học phần đang mở trong đợt đăng ký hiện hành.
-    Bao gồm thông tin kiểm tra 4 điều kiện của từng lớp và danh sách lớp đã đăng ký.
+    Display class sections open during the current registration period.
+    Includes 4-condition validation info for each class and the list of registered classes.
     """
     student_id = _student_id()
     semester_id = _semester_id_arg()
@@ -223,13 +223,13 @@ def api_courses():
 @student_bp.route('/api/classes/<int:class_id>', methods=['GET'])
 @api_endpoint
 def api_class_detail(class_id):
-    """Lấy thông số kỹ thuật chi tiết của một lớp học phần."""
+    """Get detailed technical specifications of a class section."""
     student_id = _student_id()
     detail = StudentCourseModel.get_class_detail(student_id, class_id)
     return api_success(detail)
 
 
-# 2.3. Đăng ký môn học (Kiểm tra 4 điều kiện nghiêm ngặt)
+# 2.3. Course registration (Strict 4-condition check)
 @student_bp.route('/api/register', methods=['POST'])
 @api_endpoint
 def api_register_course():
@@ -248,7 +248,7 @@ def api_register_course():
     return api_success(data=result.get('data'), message=result.get('message'), status=201)
 
 
-# 2.4. Hủy đăng ký môn học
+# 2.4. Drop course registration
 @student_bp.route('/api/drop', methods=['POST'])
 @api_endpoint
 def api_drop_course():
@@ -267,14 +267,14 @@ def api_drop_course():
     return api_success(data=result.get('data'), message=result.get('message'))
 
 
-# 2.5. Thời khóa biểu theo dạng lưới tuần
+# 2.5. Weekly grid timetable
 @student_bp.route('/api/timetable', methods=['GET'])
 @api_endpoint
 def api_timetable():
     """
-    Render thời khóa biểu theo dạng lưới tuần:
-      - Các ca học và ngày học trong tuần được hiển thị trực quan.
-      - Cho phép điều hướng xem các tuần khác nhau trong học kỳ.
+    Render timetable in a weekly grid format:
+- Time slots and days of the week are displayed visually.
+- Supports navigating across different weeks in the semester.
     """
     student_id = _student_id()
     semester_id = _semester_id_arg()
@@ -283,13 +283,13 @@ def api_timetable():
     return api_success(grid)
 
 
-# 2.6. Bảng kê học phí tự động
+# 2.6. Automated tuition statement
 @student_bp.route('/api/tuition', methods=['GET'])
 @api_endpoint
 def api_tuition():
     """
-    Tự động tính toán tổng học phí dựa trên đơn giá tín chỉ và số tín chỉ đăng ký:
-      - Trả về thống kê tổng hợp và danh sách chi tiết các môn học tính phí.
+    Automatically calculate total tuition based on per-credit rate and registered credits:
+- Returns summary statistics and a detailed list of billable courses.
     """
     student_id = _student_id()
     semester_id = _semester_id_arg()
@@ -297,11 +297,11 @@ def api_tuition():
     return api_success(statement)
 
 
-# 2.7. Lịch sử giao dịch đăng ký / hủy môn
+# 2.7. Registration / drop transaction history
 @student_bp.route('/api/history', methods=['GET'])
 @api_endpoint
 def api_history():
-    """Tra cứu toàn bộ lịch sử đăng ký & hủy môn học (Audit Log)."""
+    """Look up full course registration & drop history (Audit Log)."""
     student_id = _student_id()
     semester_id = request.args.get('semester_id', type=int)
     filter_type = request.args.get('filter', default='all')
@@ -309,11 +309,11 @@ def api_history():
     return api_success(history)
 
 
-# 2.8. Đổi mật khẩu tài khoản
+# 2.8. Change account password
 @student_bp.route('/api/change-password', methods=['POST'])
 @api_endpoint
 def api_change_password():
-    """Đổi mật khẩu tài khoản sinh viên."""
+    """Change student account password."""
     student_id = _student_id()
     data = _payload()
     current_password = data.get('current_password', '')
