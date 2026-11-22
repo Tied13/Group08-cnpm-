@@ -1,27 +1,27 @@
 """
 tests/test_student.py
 =====================
-Bộ Test Cases & Unit Test cho PHÂN HỆ SINH VIÊN (Stage 4 - Testing & Quality).
-Hệ thống Đăng ký Môn học (Course Registration System).
+Test Cases & Unit Tests for the STUDENT PORTAL module (Stage 4 - Testing & Quality).
+Course Registration System.
 
 ================================================================================
-BẢNG THIẾT KẾ TEST CASES (TEST CASE SPECIFICATION)
+TEST CASE SPECIFICATION TABLE
 ================================================================================
-| Mã TC     | Tên Test Case                                             | Đầu vào (Input)                                        | Kết quả kỳ vọng (Expected Output)                                           |
+| TC ID     | Test Case Name                                            | Input                                                  | Expected Output                                                             |
 |-----------|-----------------------------------------------------------|--------------------------------------------------------|-----------------------------------------------------------------------------|
-| TC_STU_01 | Hiển thị danh mục lớp học phần đang mở                    | SemesterId=2, StudentId=4                             | Danh sách lớp kèm tình trạng chỗ trống, môn tiên quyết, khả năng đăng ký     |
-| TC_STU_02 | ĐK thất bại do Lớp hết chỗ (CurrentEnrollment >= Max)     | ClassId=1 (CurrentEnrollment=50, MaxCapacity=50)       | Báo lỗi StudentConflictError (HTTP 409), sĩ số không tăng                  |
-| TC_STU_03 | ĐK thất bại do Chưa hoàn thành môn tiên quyết             | Môn IT102 cần tiên quyết IT101 nhưng SV chưa học/qua   | Báo lỗi StudentValidationError (HTTP 400), chặn đăng ký                     |
-| TC_STU_04 | ĐK thành công khi Đã hoàn thành môn tiên quyết            | Môn IT102, SV đã hoàn thành IT101 (IsPassed=1)         | Đăng ký thành công (HTTP 201), tạo Enrollment 'Enrolled'                   |
-| TC_STU_05 | ĐK thất bại do Trùng lịch học (DayOfWeek & TimeSlot)      | Lớp trùng Thứ 2, Ca 1 với lớp đã ghi danh trong kỳ    | Báo lỗi StudentConflictError (HTTP 409), chỉ rõ lớp và ca học bị trùng     |
-| TC_STU_06 | ĐK thất bại do Vượt quá 25 tín chỉ tối đa                 | Tổng tín chỉ hiện tại 23 TC + môn mới 4 TC = 27 TC     | Báo lỗi StudentValidationError (HTTP 400), giới hạn tối đa 25 TC           |
-| TC_STU_07 | ĐK môn học thành công & Tăng biến đếm sĩ số lên 1         | Thỏa mãn đủ 4 điều kiện nghiêm ngặt                    | CurrentEnrollment tăng +1, lưu Enrollments 'Enrolled', audit log 'Register' |
-| TC_STU_08 | Chặn đăng ký trùng 2 lớp của cùng một môn học             | Đã đăng ký IT101_01, tiếp tục đăng ký IT101_02         | Báo lỗi StudentConflictError (HTTP 409) trùng môn học trong kỳ             |
-| TC_STU_09 | Chặn đăng ký khi Đợt đăng ký môn học đã đóng              | Cổng đăng ký IsActive=0 hoặc ngoài khoảng thời gian    | Báo lỗi StudentValidationError (HTTP 400) đợt đăng ký đóng                 |
-| TC_STU_10 | Hủy đăng ký môn học thành công & Giảm sĩ số đi 1          | SV đang Enrolled hủy lớp trong thời gian mở cổng       | CurrentEnrollment giảm -1, Enrollment -> 'Cancelled', audit log 'Drop'      |
-| TC_STU_11 | Render Thời khóa biểu dạng lưới tuần                      | SV có các lớp Enrolled trong tuần                      | Phân bố chính xác các ca học theo Thứ (Thứ 2 - CN) và Ca học (Slot 1..N)   |
-| TC_STU_12 | Tự động tính toán tổng học phí theo đơn giá tín chỉ      | Tổng 7 tín chỉ, Đơn giá 550.000 VNĐ                    | Tổng tiền = 7 * 550.000 = 3.850.000 VNĐ, bảng kê chi tiết từng môn         |
-| TC_STU_13 | Kiểm tra phân quyền RBAC trên các API `/student/*`        | Chưa đăng nhập (401) hoặc role='Lecturer' (403)        | Chặn truy cập trái phép với mã HTTP 401 / 403                               |
+| TC_STU_01 | Display open class sections in semester                   | SemesterId=2, StudentId=4                             | Class list with seat availability, prerequisite status, eligibility flags     |
+| TC_STU_02 | Registration fails when class section is full             | ClassId=1 (CurrentEnrollment=50, MaxCapacity=50)       | StudentConflictError (HTTP 409), enrollment count unchanged               |
+| TC_STU_03 | Registration fails when prerequisite is not met           | Course IT102 requires IT101, student has not passed    | StudentValidationError (HTTP 400), registration blocked                   |
+| TC_STU_04 | Registration succeeds when prerequisite is met            | Course IT102, student completed IT101 (IsPassed=1)     | Registration succeeds (HTTP 201), 'Enrolled' record created               |
+| TC_STU_05 | Registration fails on schedule conflict                   | Class conflicts on Day/TimeSlot with enrolled class    | StudentConflictError (HTTP 409), identifies conflicting class & slot        |
+| TC_STU_06 | Registration fails when exceeding 25 max credits          | Current 23 credits + new 4 credits = 27 credits        | StudentValidationError (HTTP 400), exceeds 25-credit cap                  |
+| TC_STU_07 | Registration succeeds & increments enrollment count by 1  | All 4 strict conditions satisfied                      | CurrentEnrollment +1, 'Enrolled' saved, 'Register' audit log recorded      |
+| TC_STU_08 | Block duplicate registration across sections of same course | Already enrolled in IT101_01, registers IT101_02       | StudentConflictError (HTTP 409) for duplicate course in semester          |
+| TC_STU_09 | Block registration when registration period is closed     | Registration window IsActive=0 or outside date range   | StudentValidationError (HTTP 400) indicating registration is closed         |
+| TC_STU_10 | Drop course succeeds & decrements enrollment count by 1   | Enrolled student drops class while window is open      | CurrentEnrollment -1, Enrollment -> 'Cancelled', 'Drop' audit log recorded  |
+| TC_STU_11 | Render weekly timetable grid                              | Student has enrolled classes in the selected week       | Sessions mapped accurately across days and time slots (Slot 1..N)           |
+| TC_STU_12 | Automatically calculate total tuition by credit rate      | 7 total credits, Unit price 550,000 VND                | Total = 7 * 550,000 = 3,850,000 VND, itemized course breakdown              |
+| TC_STU_13 | Verify RBAC authorization on `/student/*` APIs            | Unauthenticated (401) or role='Lecturer' (403)       | Unauthorized requests rejected with HTTP 401 / 403                        |
 ================================================================================
 """
 
@@ -36,7 +36,7 @@ from unittest.mock import patch
 from werkzeug.security import generate_password_hash
 from models.user_model import UserModel
 
-# Đảm bảo import được các module trong thư mục stage3&4
+# Ensure modules in the stage3&4 directory can be imported
 STAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if STAGE_DIR not in sys.path:
     sys.path.insert(0, STAGE_DIR)
@@ -59,7 +59,7 @@ from models.db import Database
 
 
 # ==========================================================================
-# FAKE IN-MEMORY DATABASE ENGINE (Dành cho Unit Test độc lập)
+# FAKE IN-MEMORY DATABASE ENGINE (For standalone unit tests)
 # ==========================================================================
 class FakeStudentCursor:
     def __init__(self, state):
@@ -482,9 +482,9 @@ class FakeStudentDB:
                 {'Id': 1, 'SemesterId': 2, 'PeriodName': 'Fall 2026 Official Registration', 'StartDate': '2026-01-01 00:00:00', 'EndDate': '2027-12-31 23:59:59', 'MinCredits': 12, 'MaxCredits': 25, 'IsActive': 1},
             ],
             'timeslots': [
-                {'Id': 1, 'SlotNumber': 1, 'SlotName': 'Ca 1 (07:00 - 09:30)', 'StartTime': '07:00:00', 'EndTime': '09:30:00'},
-                {'Id': 2, 'SlotNumber': 2, 'SlotName': 'Ca 2 (09:45 - 12:15)', 'StartTime': '09:45:00', 'EndTime': '12:15:00'},
-                {'Id': 3, 'SlotNumber': 3, 'SlotName': 'Ca 3 (13:00 - 15:30)', 'StartTime': '13:00:00', 'EndTime': '15:30:00'},
+                {'Id': 1, 'SlotNumber': 1, 'SlotName': 'Slot 1 (07:00 - 09:30)', 'StartTime': '07:00:00', 'EndTime': '09:30:00'},
+                {'Id': 2, 'SlotNumber': 2, 'SlotName': 'Slot 2 (09:45 - 12:15)', 'StartTime': '09:45:00', 'EndTime': '12:15:00'},
+                {'Id': 3, 'SlotNumber': 3, 'SlotName': 'Slot 3 (13:00 - 15:30)', 'StartTime': '13:00:00', 'EndTime': '15:30:00'},
             ],
             'courses': [
                 {'Id': 101, 'CourseCode': 'IT101', 'CourseName': 'Introduction to Programming', 'Credits': 3, 'PrerequisiteCourseId': None, 'Department': 'Computer Science'},
@@ -498,10 +498,10 @@ class FakeStudentDB:
                 {'Id': 2, 'ClassCode': 'IT101_02', 'CourseId': 101, 'SemesterId': 2, 'LecturerId': 2, 'Room': 'A102', 'TimeSlotId': 2, 'DayOfWeek': 3, 'MinCapacity': 15, 'MaxCapacity': 50, 'CurrentEnrollment': 20, 'Status': 'Open'},
                 {'Id': 3, 'ClassCode': 'IT102_01', 'CourseId': 102, 'SemesterId': 2, 'LecturerId': 2, 'Room': 'B201', 'TimeSlotId': 2, 'DayOfWeek': 4, 'MinCapacity': 15, 'MaxCapacity': 50, 'CurrentEnrollment': 15, 'Status': 'Open'},
                 {'Id': 4, 'ClassCode': 'IS201_01', 'CourseId': 201, 'SemesterId': 2, 'LecturerId': 2, 'Room': 'B202', 'TimeSlotId': 1, 'DayOfWeek': 2, 'MinCapacity': 15, 'MaxCapacity': 50, 'CurrentEnrollment': 12, 'Status': 'Open'},
-                {'Id': 5, 'ClassCode': 'IS301_01', 'CourseId': 301, 'SemesterId': 2, 'LecturerId': 2, 'Room': 'C301', 'TimeSlotId': 3, 'DayOfWeek': 5, 'MinCapacity': 15, 'MaxCapacity': 50, 'CurrentEnrollment': 50, 'Status': 'Closed'}, # Lớp đầy chỗ
+                {'Id': 5, 'ClassCode': 'IS301_01', 'CourseId': 301, 'SemesterId': 2, 'LecturerId': 2, 'Room': 'C301', 'TimeSlotId': 3, 'DayOfWeek': 5, 'MinCapacity': 15, 'MaxCapacity': 50, 'CurrentEnrollment': 50, 'Status': 'Closed'}, # Full class section
             ],
             'enrollments': [
-                # SV 4 đã học xong môn IT101 và qua môn (IsPassed=1) ở kỳ trước
+                # Student 4 completed IT101 and passed (IsPassed=1) in a previous semester
                 {'Id': 1, 'StudentId': 4, 'ClassId': 99, 'Status': 'Completed', 'IsPassed': 1, 'FinalGrade': 8.5, 'EnrolledAt': '2026-01-20T08:00:00', 'CancelledAt': None},
             ],
             'history': [],
@@ -510,7 +510,7 @@ class FakeStudentDB:
 
 
 # ==========================================================================
-# TEST SUITE CHÍNH
+# MAIN TEST SUITE
 # ==========================================================================
 class TestStudentModule(unittest.TestCase):
     """Test suite covering TC_STU_01 to TC_STU_26 based strictly on the Excel specification."""
